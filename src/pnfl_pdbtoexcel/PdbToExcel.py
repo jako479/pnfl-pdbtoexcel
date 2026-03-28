@@ -29,6 +29,12 @@ def get_runtime_path(filename):
     return SCRIPT_DIR / filename
 
 
+def set_config_path(config_path):
+    get_config_path.config_path = Path(config_path).expanduser().resolve()
+    if hasattr(get_config, "config_dictionary"):
+        delattr(get_config, "config_dictionary")
+
+
 def get_config_path():
     if not hasattr(get_config_path, "config_path"):
         candidates = [
@@ -1399,36 +1405,42 @@ class PlayPool:
 #
 ###########################################################################
 
-def run(args=None):
+def build_argument_parser():
 
-    def valid_pdb_file(param):
-        base, ext = os.path.splitext(param)
-        if ext.lower() != '.pdb':
-            raise argparse.ArgumentTypeError('File must have a pdb extension')
-        return param
+    def valid_existing_file(param, expected_extensions):
+        filepath = Path(param).expanduser()
+        if filepath.suffix.lower() not in expected_extensions:
+            extensions = ", ".join(expected_extensions)
+            raise argparse.ArgumentTypeError(f"File must have one of these extensions: {extensions}")
+        if not filepath.is_file():
+            raise argparse.ArgumentTypeError(f"File not found: {filepath}")
+        return str(filepath)
 
-    def valid_pln_file(param):
-        base, ext = os.path.splitext(param)
-        if ext.lower() != '.pln':
-            raise argparse.ArgumentTypeError('File must have a pln extension')
-        return param
-
-    def valid_xlsx_file(param):
-        base, ext = os.path.splitext(param)
-        if ext.lower() not in ('.xlsm', '.xlsx'):
+    def valid_output_file(param):
+        filepath = Path(param).expanduser()
+        if filepath.suffix.lower() not in ('.xlsm', '.xlsx'):
             raise argparse.ArgumentTypeError('File must have a xlsm or xlsx extension')
-        return param
+        return str(filepath)
 
-    # Execute as command line script
-    if not args:
-        args = sys.argv[1:]
-    parser = argparse.ArgumentParser()
-    parser.add_argument("pdbfile", type=valid_pdb_file, help="WinLogStats database file (.PDB)")
-    parser.add_argument("-d", "--plnfile-defense", type=valid_pln_file, help="defensive game plan file (.PLN)")
-    parser.add_argument("-o", "--plnfile-offense", type=valid_pln_file, help="offensive game plan file (.PLN)")
-    parser.add_argument("outputfile", type=valid_xlsx_file, help="save to this XLSX/XLSM file")
+    parser = argparse.ArgumentParser(
+        description="Create an Excel workbook from a WinLogStats PDB and optional FBPro 98 game plans."
+    )
+    parser.add_argument("pdbfile", type=lambda value: valid_existing_file(value, ('.pdb',)), help="WinLogStats database file (.PDB)")
+    parser.add_argument("-d", "--plnfile-defense", type=lambda value: valid_existing_file(value, ('.pln',)), help="defensive game plan file (.PLN)")
+    parser.add_argument("-o", "--plnfile-offense", type=lambda value: valid_existing_file(value, ('.pln',)), help="offensive game plan file (.PLN)")
+    parser.add_argument("outputfile", type=valid_output_file, help="save to this XLSX/XLSM file")
+    parser.add_argument("--config", type=lambda value: valid_existing_file(value, ('.ini',)), help="use this INI file instead of the default config lookup")
     parser.add_argument("-c", "--skip-calcs", default=False, action='store_true', help="prevents the extra calculation columns (overrides config settings)")
     parser.add_argument("-t", "--skip-totals", default=False, action='store_true', help="prevents totalling stats (overrides config settings)")
+    return parser
+
+
+def run(args=None):
+
+    # Execute as command line script
+    if args is None:
+        args = sys.argv[1:]
+    parser = build_argument_parser()
     args = parser.parse_args(args)
 
     # if os.path.isfile(args.outputfile):
@@ -1437,6 +1449,9 @@ def run(args=None):
     #         overwrite = input(f'Overwrite {args.outputfile}? (Yes/No): ').lower()
     #     if overwrite == 'n':
     #         sys.exit(0)
+
+    if args.config:
+        set_config_path(args.config)
 
     config = get_config()
 
@@ -1447,8 +1462,8 @@ def run(args=None):
     creator.create_workbook(args.outputfile, not args.skip_calcs, calculate_totals, False)
 
     # Done
-    sys.exit(0)
+    return 0
 
 
 if __name__ == "__main__":
-    run()
+    raise SystemExit(run())
