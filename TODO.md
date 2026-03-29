@@ -2,8 +2,7 @@
 
 ## Immediate
 
-1. Sanity-check the current `PLN` offsets-table parsing against one or more real game plan files.
-2. Confirm the slot handling for:
+1. Confirm the slot handling for:
    - normal plays
    - special teams plays
    - stock special plays

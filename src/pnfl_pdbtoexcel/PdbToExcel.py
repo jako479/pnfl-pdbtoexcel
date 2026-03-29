@@ -18,7 +18,7 @@ from pathlib import Path
 import socket
 import struct
 import sys
-import xlsxwriter
+from workbook import ExcelPdbWorkbook
 
 
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -71,6 +71,19 @@ TOTAL_STATS_FILTER = {
     'PMR': (0.50, 6.0),
     'PLR': (0.40, 6.0),
     'PRD': (0.29, None),
+}
+
+DEFENSE_OUTPUT_CATEGORIES = {
+    'RunRight',
+    'RunMiddle',
+    'RunLeft',
+    'PassShort',
+    'PassMedium',
+    'PassLong',
+    'RunDazzle',
+    'PassDazzle',
+    'GLrun',
+    'GLpass',
 }
 
 
@@ -578,131 +591,27 @@ class PdbWorkbookCreator:
 
         with ExcelPdbWorkbook(filename, perform_calculations) as workbook:
             config = get_config()
-            missing_play_files_logged = []
+            combined_plays = {} if calculate_totals else None
+            missing_play_files_logged = set()
 
-            # Add all plays in the PDB to the workbook
-            for play_type in PLAY_DATA.PLAY_TYPE:
-                # Only care about run plays, pass plays, or defense
-                if (play_type == PLAY_DATA.PLAY_TYPE.RUN or
-                        play_type == PLAY_DATA.PLAY_TYPE.PASS or
-                        play_type == PLAY_DATA.PLAY_TYPE.DEFENSE):
-                    # Sort the list of play data by team
-                    plays_list = list(self.pdb.plays[play_type].values())
-                    plays_list.sort(key=lambda x: x.team_name)
-                    for play_in_pdb in plays_list:
-                        play_name = play_in_pdb.play_name.decode('ASCII')
-                        team_name = play_in_pdb.team_name.decode('ASCII')
-                        play_slot = ''
-                        # if team_name.upper() == config['Settings']['Team'].upper():
-                        if 1:
-                            play_in_plan = None
-                            if (self.pln_offense and
-                                    (play_in_pdb.play_type == PLAY_DATA.PLAY_TYPE.RUN or
-                                     play_in_pdb.play_type == PLAY_DATA.PLAY_TYPE.PASS)):
-                                play_in_plan = self.pln_offense.normal_plays.get(play_name)
-                            elif (self.pln_defense and
-                                    (play_in_pdb.play_type == PLAY_DATA.PLAY_TYPE.DEFENSE)):
-                                play_in_plan = self.pln_defense.normal_plays.get(play_name)
-                            if play_in_plan:
-                                play_slot = self._get_slot_string(play_in_plan.slot)
-                        play_attributes = self.play_pool.get_play_attributes(play_name)
-                        if play_attributes.category == 'Unknown':
-                            # Only log each missing play once
-                            if play_name not in missing_play_files_logged:
-                                if play_name in DELETED_PLAYS:
-                                    print(f"Skipping deleted play \'{play_name}\'")
-                                else:
-                                    print(f"Play file not found for play \'{play_name}\'")
-                                missing_play_files_logged.append(play_name)
-                            if play_name in DELETED_PLAYS:
-                                # Don't add a known deleted play to the spreadsheet
-                                continue
-                        # Add the play to the workbook
-                        workbook.add_play(play_in_pdb, play_slot, play_attributes)
+            for play_in_pdb, play_name, _, play_attributes in self._iter_category_source_plays(missing_play_files_logged):
+                play_slot = self._get_play_slot(play_in_pdb, play_name)
+                workbook.add_play(play_in_pdb, play_slot, play_attributes)
+                if calculate_totals:
+                    self._add_play_stats_to_total_play(combined_plays, play_in_pdb)
 
-            # Calculate total stats for each play using data from all teams
             if calculate_totals:
-                combined_plays = {}
-                for play_type in PLAY_DATA.PLAY_TYPE:
-                    # Only care about runs, passes, and defense
-                    if (play_type == PLAY_DATA.PLAY_TYPE.RUN or
-                            play_type == PLAY_DATA.PLAY_TYPE.PASS or
-                            play_type == PLAY_DATA.PLAY_TYPE.DEFENSE):
-                        for row_idx, play_in_pdb in enumerate(self.pdb.plays[play_type].values()):
-                            if play_in_pdb.play_name in combined_plays:
-                                combined_play_data = combined_plays[play_in_pdb.play_name]
-                            else:
-                                combined_play_data = PLAY_DATA()
-                                combined_play_data.play_type = play_in_pdb.play_type
-                                combined_play_data.team_name = bytes('`Total Stats', 'ASCII')
-                                combined_play_data.play_name = play_in_pdb.play_name
-                            # Add the play stats to the play's total stats
-                            combined_play_data += play_in_pdb
-                            # Add/Replace the play stats
-                            combined_plays[play_in_pdb.play_name] = combined_play_data
-
-                # Add the totalled play stats to the workbook
-                for row_idx, play_in_pdb in enumerate(combined_plays.values()):
-                    play_name = play_in_pdb.play_name.decode('ASCII')
-                    play_attributes = self.play_pool.get_play_attributes(play_name)
-                    if play_attributes.category == 'Unknown':
-                        if play_name in DELETED_PLAYS:
-                            # Don't include data from known deleted plays
-                            continue
-                    if not filter_total_stats or self._play_meets_criteria(play_in_pdb, play_attributes):
-                        play_slot = ''
-                        play_in_plan = None
-                        if (self.pln_offense and
-                                (play_in_pdb.play_type == PLAY_DATA.PLAY_TYPE.RUN or
-                                    play_in_pdb.play_type == PLAY_DATA.PLAY_TYPE.PASS)):
-                            play_in_plan = self.pln_offense.normal_plays.get(play_name)
-                        elif (self.pln_defense and
-                                play_in_pdb.play_type == PLAY_DATA.PLAY_TYPE.DEFENSE):
-                            play_in_plan = self.pln_defense.normal_plays.get(play_name)
-                        if play_in_plan:
-                            play_slot = self._get_slot_string(play_in_plan.slot)
-                        workbook.add_play(play_in_pdb, play_slot, play_attributes)
+                self._add_total_plays_to_workbook(workbook, combined_plays, filter_total_stats)
 
             # Add all tendency data in the PDB to the workbook
             for row_num, tendency_data in enumerate(self.pdb.tendencies):
                 workbook.add_tendency(tendency_data)
 
             if config['Settings']['CalculateCategoryStats']:
-                # Calculate team category and total category stats
-                categories_data = {}  # Key: category; Value: total stats
-                team_categories_data = {}  # Key: (team, category); Value: team category stats
-                for play_type in PLAY_DATA.PLAY_TYPE:
-                    # Only care about runs, passes, and defense
-                    if (play_type == PLAY_DATA.PLAY_TYPE.RUN or
-                            play_type == PLAY_DATA.PLAY_TYPE.PASS or
-                            play_type == PLAY_DATA.PLAY_TYPE.DEFENSE):
-                        # Sort the list of play data by team
-                        plays_list = list(self.pdb.plays[play_type].values())
-                        plays_list.sort(key=lambda x: x.team_name)
-                        for play_in_pdb in plays_list:
-                            play_name = play_in_pdb.play_name.decode('ASCII')
-                            team_name = play_in_pdb.team_name.decode('ASCII')
-                            play_attributes = self.play_pool.get_play_attributes(play_name)
-                            if play_attributes.category == "Unknown":
-                                if play_name in DELETED_PLAYS:
-                                    # Don't include data from known deleted plays
-                                    continue
-                            self._add_play_stats_to_team_categories(
-                                team_categories_data=team_categories_data,
-                                play_in_pdb=play_in_pdb,
-                                team_name=team_name,
-                                category=play_attributes.category
-                            )
-                            if calculate_totals:
-                                # Add play stats to the category data
-                                if play_attributes.category in categories_data:
-                                    category_data = categories_data[play_attributes.category]
-                                else:
-                                    category_data = PLAY_DATA()
-                                    category_data.play_type = play_in_pdb.play_type
-                                category_data += play_in_pdb
-                                # Add/Replace the category stats
-                                categories_data[play_attributes.category] = category_data
+                team_categories_data, categories_data = self._collect_category_stats(
+                    calculate_totals=calculate_totals,
+                    group_categories=config['Settings']['CalculateGroupedCategoryStats'],
+                )
 
                 # Add the team category stats to the workbook
                 for team_category, category_data in team_categories_data.items():
@@ -714,6 +623,111 @@ class PdbWorkbookCreator:
                         workbook.add_category(('`Total Stats', category_name), category_data)
 
         print("Conversion complete")
+
+
+    def _iter_tracked_plays(self):
+        play_types = (
+            PLAY_DATA.PLAY_TYPE.RUN,
+            PLAY_DATA.PLAY_TYPE.PASS,
+            PLAY_DATA.PLAY_TYPE.DEFENSE,
+        )
+        for play_type in play_types:
+            plays_list = list(self.pdb.plays[play_type].values())
+            plays_list.sort(key=lambda x: x.team_name)
+            for play_in_pdb in plays_list:
+                yield play_in_pdb
+
+
+    def _iter_category_source_plays(self, missing_play_files_logged=None):
+        for play_in_pdb in self._iter_tracked_plays():
+            play_name = play_in_pdb.play_name.decode('ASCII')
+            team_name = play_in_pdb.team_name.decode('ASCII')
+            play_attributes = self.play_pool.get_play_attributes(play_name)
+            if self._play_is_unknown_to_play_pool(play_attributes):
+                self._log_unknown_play_pool_entry(play_name, missing_play_files_logged)
+            if not self._should_export_play(play_in_pdb, play_name, play_attributes):
+                continue
+            yield play_in_pdb, play_name, team_name, play_attributes
+
+
+    def _play_is_unknown_to_play_pool(self, play_attributes):
+        return play_attributes.category == 'Unknown'
+
+
+    def _log_unknown_play_pool_entry(self, play_name, missing_play_files_logged=None):
+        # This checks the category from PlayPool lookup, not any category stored in the PDB.
+        # A play can have valid stats in the database and still come back as 'Unknown' here
+        # if there is no matching current play file in the play pool.
+        if missing_play_files_logged is not None and play_name not in missing_play_files_logged:
+            if play_name in DELETED_PLAYS:
+                print(f"Skipping deleted play \'{play_name}\'")
+            else:
+                print(f"Play file not found for play \'{play_name}\'")
+            missing_play_files_logged.add(play_name)
+
+
+    def _should_export_play(self, play_in_pdb, play_name, play_attributes):
+        if (play_in_pdb.play_type == PLAY_DATA.PLAY_TYPE.DEFENSE and
+                play_attributes.category not in DEFENSE_OUTPUT_CATEGORIES):
+            return False
+        return play_name not in DELETED_PLAYS
+
+
+    def _get_play_slot(self, play_in_pdb, play_name):
+        play_slot = ''
+        play_in_plan = None
+        if (self.pln_offense and
+                (play_in_pdb.play_type == PLAY_DATA.PLAY_TYPE.RUN or
+                 play_in_pdb.play_type == PLAY_DATA.PLAY_TYPE.PASS)):
+            play_in_plan = self.pln_offense.normal_plays.get(play_name)
+        elif (self.pln_defense and
+                play_in_pdb.play_type == PLAY_DATA.PLAY_TYPE.DEFENSE):
+            play_in_plan = self.pln_defense.normal_plays.get(play_name)
+        if play_in_plan:
+            play_slot = self._get_slot_string(play_in_plan.slot)
+        return play_slot
+
+
+    def _collect_category_stats(self, calculate_totals, group_categories):
+        categories_data = {}
+        team_categories_data = {}
+
+        for play_in_pdb, _, team_name, play_attributes in self._iter_category_source_plays():
+            self._add_play_stats_to_team_categories(
+                team_categories_data=team_categories_data,
+                play_in_pdb=play_in_pdb,
+                team_name=team_name,
+                category=play_attributes.category,
+                group_categories=group_categories,
+            )
+            if calculate_totals:
+                self._add_play_stats_to_category(categories_data, play_in_pdb, play_attributes.category)
+
+        return team_categories_data, categories_data
+
+
+    def _add_play_stats_to_total_play(self, combined_plays, play_in_pdb):
+        if play_in_pdb.play_name in combined_plays:
+            combined_play_data = combined_plays[play_in_pdb.play_name]
+        else:
+            combined_play_data = PLAY_DATA()
+            combined_play_data.play_type = play_in_pdb.play_type
+            combined_play_data.team_name = bytes('`Total Stats', 'ASCII')
+            combined_play_data.play_name = play_in_pdb.play_name
+        combined_play_data += play_in_pdb
+        combined_plays[play_in_pdb.play_name] = combined_play_data
+
+
+    def _add_total_plays_to_workbook(self, workbook, combined_plays, filter_total_stats):
+        for play_in_pdb in combined_plays.values():
+            play_name = play_in_pdb.play_name.decode('ASCII')
+            play_attributes = self.play_pool.get_play_attributes(play_name)
+            if not self._should_export_play(play_in_pdb, play_name, play_attributes):
+                continue
+            if filter_total_stats and not self._play_meets_criteria(play_in_pdb, play_attributes):
+                continue
+            play_slot = self._get_play_slot(play_in_pdb, play_name)
+            workbook.add_play(play_in_pdb, play_slot, play_attributes)
 
 
     def _add_play_stats_to_team_categories(self, team_categories_data, play_in_pdb, team_name, category, group_categories=False):
@@ -742,9 +756,7 @@ class PdbWorkbookCreator:
         else:
             team_category_data = PLAY_DATA()
             team_category_data.play_type = play_in_pdb.play_type
-                            # Add the play stats to the team category stats
         team_category_data += play_in_pdb
-                            # Add/Replace the team category stats
         team_categories_data[team_category] = team_category_data
 
 
@@ -796,7 +808,7 @@ class PdbWorkbookCreator:
 #
 ###############################################################################
 
-class ExcelPdbWorkbook:
+class _LegacyExcelPdbWorkbook:
 
     ###########################################################################
     #
