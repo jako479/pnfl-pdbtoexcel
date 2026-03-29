@@ -85,8 +85,10 @@ def get_config():
         config_dict['Settings']['PnflPath'] = cp.get("Settings", "PnflPath", fallback="C:\\SIERRA\\FbPro98\\PNFL")
         config_dict['Settings']['CalculateTotalStats'] = cp.getboolean("Settings", "CalculateTotalStats", fallback=True)
         config_dict['Settings']['CalculateCategoryStats'] = (md5.hexdigest() == '5c4b925bf527c4f8581815a35a10d658')
+        config_dict['Settings']['CalculateGroupedCategoryStats'] = (md5.hexdigest() == '5c4b925bf527c4f8581815a35a10d658' and 1)
         config_dict['AdditionalColumns'] = {}
-        config_dict['AdditionalColumns']['PassYardsPerAttempt'] = cp.getboolean("AdditionalColumns", "PassYardsPerAttempt", fallback=True)
+        config_dict['AdditionalColumns']['RunFumblePercentage'] = cp.getboolean("AdditionalColumns", "RunFumblePercentage", fallback=True)
+        config_dict['AdditionalColumns']['RunTouchdownPercentage'] = cp.getboolean("AdditionalColumns", "RunTouchdownPercentage", fallback=True)
         config_dict['AdditionalColumns']['PassInterceptionPercentage'] = cp.getboolean("AdditionalColumns", "PassInterceptionPercentage", fallback=True)
         config_dict['AdditionalColumns']['PassSackPercentage'] = cp.getboolean("AdditionalColumns", "PassSackPercentage", fallback=True)
         config_dict['AdditionalColumns']['PassTouchdownPercentage'] = cp.getboolean("AdditionalColumns", "PassTouchdownPercentage", fallback=True)
@@ -666,8 +668,9 @@ class PdbWorkbookCreator:
                 workbook.add_tendency(tendency_data)
 
             if config['Settings']['CalculateCategoryStats']:
-                # Calculate team category stats
-                team_categories_data = {}  # Key: (team, category); Value: category stats
+                # Calculate team category and total category stats
+                categories_data = {}  # Key: category; Value: total stats
+                team_categories_data = {}  # Key: (team, category); Value: team category stats
                 for play_type in PLAY_DATA.PLAY_TYPE:
                     # Only care about runs, passes, and defense
                     if (play_type == PLAY_DATA.PLAY_TYPE.RUN or
@@ -684,36 +687,13 @@ class PdbWorkbookCreator:
                                 if play_name in DELETED_PLAYS:
                                     # Don't include data from known deleted plays
                                     continue
-                            team_category = (team_name, play_attributes.category)
-                            if team_category in team_categories_data:
-                                team_category_data = team_categories_data[team_category]
-                            else:
-                                team_category_data = PLAY_DATA()
-                                team_category_data.play_type = play_in_pdb.play_type
-                            # Add the play stats to the team category stats
-                            team_category_data += play_in_pdb
-                            # Add/Replace the team category stats
-                            team_categories_data[team_category] = team_category_data
-
-                # Add the team category stats to the workbook
-                for team_category, category_data in team_categories_data.items():
-                    workbook.add_category(team_category, category_data)
-
-                if calculate_totals:
-                    # Calculate total category stats using data from all teams
-                    categories_data = {}  # Key: category; Value: stats
-                    for play_type in PLAY_DATA.PLAY_TYPE:
-                        # Only care about runs, passes, and defense
-                        if (play_type == PLAY_DATA.PLAY_TYPE.RUN or
-                                play_type == PLAY_DATA.PLAY_TYPE.PASS or
-                                play_type == PLAY_DATA.PLAY_TYPE.DEFENSE):
-                            for row_idx, play_in_pdb in enumerate(self.pdb.plays[play_type].values()):
-                                play_name = play_in_pdb.play_name.decode('ASCII')
-                                play_attributes = self.play_pool.get_play_attributes(play_name)
-                                if play_attributes.category == 'Unknown':
-                                    if play_name in DELETED_PLAYS:
-                                        # Don't include data from known deleted plays
-                                        continue
+                            self._add_play_stats_to_team_categories(
+                                team_categories_data=team_categories_data,
+                                play_in_pdb=play_in_pdb,
+                                team_name=team_name,
+                                category=play_attributes.category
+                            )
+                            if calculate_totals:
                                 # Add play stats to the category data
                                 if play_attributes.category in categories_data:
                                     category_data = categories_data[play_attributes.category]
@@ -724,17 +704,68 @@ class PdbWorkbookCreator:
                                 # Add/Replace the category stats
                                 categories_data[play_attributes.category] = category_data
 
+                # Add the team category stats to the workbook
+                for team_category, category_data in team_categories_data.items():
+                    workbook.add_category(team_category, category_data)
+
+                if calculate_totals:
                     # Add the total category stats to the workbook
                     for category_name, category_data in categories_data.items():
                         workbook.add_category(('`Total Stats', category_name), category_data)
 
         print("Conversion complete")
 
+
+    def _add_play_stats_to_team_categories(self, team_categories_data, play_in_pdb, team_name, category, group_categories=False):
+        team_category = (team_name, category)
+        self._add_play_stats_to_team_category(team_categories_data, play_in_pdb, team_category)
+
+        if group_categories:
+            # Also calculate total stats for team by grouped categories
+            if play_in_pdb.play_type == PLAY_DATA.PLAY_TYPE.RUN:
+                team_category = (team_name, "TOTAL RUNS")
+                self._add_play_stats_to_team_category(team_categories_data, play_in_pdb, team_category)
+            elif play_in_pdb.play_type == PLAY_DATA.PLAY_TYPE.PASS:
+                if category in ('PSL', 'PSM', 'PSR'):
+                    team_category = (team_name, "TOTAL PS")
+                    self._add_play_stats_to_team_category(team_categories_data, play_in_pdb, team_category)
+                if category in ('PML', 'PMM', 'PMR'):
+                    team_category = (team_name, "TOTAL PM")
+                    self._add_play_stats_to_team_category(team_categories_data, play_in_pdb, team_category)
+                team_category = (team_name, "TOTAL PASSES")
+                self._add_play_stats_to_team_category(team_categories_data, play_in_pdb, team_category)
+
+
+    def _add_play_stats_to_team_category(self, team_categories_data, play_in_pdb, team_category):
+        if team_category in team_categories_data:
+            team_category_data = team_categories_data[team_category]
+        else:
+            team_category_data = PLAY_DATA()
+            team_category_data.play_type = play_in_pdb.play_type
+                            # Add the play stats to the team category stats
+        team_category_data += play_in_pdb
+                            # Add/Replace the team category stats
+        team_categories_data[team_category] = team_category_data
+
+
+    def _add_play_stats_to_category(self, categories_data, play_in_pdb, category):
+        # Add play stats to the category data
+        if category in categories_data:
+            category_data = categories_data[category]
+        else:
+            category_data = PLAY_DATA()
+            category_data.play_type = play_in_pdb.play_type
+        category_data += play_in_pdb
+        # Add/Replace the category stats
+        categories_data[category] = category_data
+
+
     def _get_slot_string(self, slot):
         slot_string = ''
         if slot >= 0:
             slot_string = f'{str(math.floor(slot / 4) + 1)}-{(slot % 4) + 1}'
         return slot_string
+
 
     def _play_meets_criteria(self, play_in_pdb, play_attributes):
         if play_attributes.category not in TOTAL_STATS_FILTER:
@@ -807,6 +838,18 @@ class ExcelPdbWorkbook:
         self.run_worksheet.set_column_pixels(3, 3, 100)         # Play
         self.run_worksheet.set_column_pixels(4, 4, 59)          # Type
         self.run_worksheet.set_column(7, 7, None, avg_format)   # Average
+        if self.perform_calculations:
+            extra_columns = 0
+            if config['AdditionalColumns']['RunFumblePercentage']:
+                column_index = 9
+                header.insert(column_index, 'Fumble %')
+                self.run_worksheet.set_column(column_index, column_index, None, percent_format_1)
+                extra_columns += 1
+            if config['AdditionalColumns']['RunTouchdownPercentage']:
+                column_index = 10 + extra_columns
+                header.insert(column_index, 'TD %')
+                self.run_worksheet.set_column(column_index, column_index, None, percent_format_1)
+                extra_columns += 1
         self.run_worksheet.write_row(0, 0, header)
         self.run_columns = len(header)
         self.run_rows = 1
@@ -815,34 +858,31 @@ class ExcelPdbWorkbook:
 
         # Setup the 'Pass Plays' worksheet
         self.pass_worksheet = self.workbook.add_worksheet('Pass Plays')
-        header = ['Team', 'Category', 'Slot', 'Play', 'Type', 'Cmp/Att', 'Comp %', 'Yards', 'Y/Comp', 'Fumbles', 'Int', 'Sacks', 'TD', 'Pts']
-        self.pass_worksheet.set_column_pixels(0, 0, 120)         # Team
-        self.pass_worksheet.set_column_pixels(1, 1, 80)          # Category
-        self.pass_worksheet.set_column(2, 2, 6.00, text_format)  # Slot (in game plan)
-        self.pass_worksheet.set_column_pixels(3, 3, 100)         # Play
-        self.pass_worksheet.set_column_pixels(4, 4, 49)          # Type
-        self.pass_worksheet.set_column(5, 5, None, text_format)
-        self.pass_worksheet.set_column(6, 6, None, percent_format_0)
-        self.pass_worksheet.set_column(8, 8, None, avg_format)
+        header = ['Team', 'Category', 'Slot', 'Play', 'Type', 'Cmp', 'Att', 'Comp %', 'Yards', 'Y/Comp', 'Y/Att', 'Fumbles', 'Int', 'Sacks', 'TD', 'Pts']
+        self.pass_worksheet.set_column_pixels(0, 0, 120)              # Team
+        self.pass_worksheet.set_column_pixels(1, 1, 80)               # Category
+        self.pass_worksheet.set_column(2, 2, 6.00, text_format)       # Slot (in game plan)
+        self.pass_worksheet.set_column_pixels(3, 3, 100)              # Play
+        self.pass_worksheet.set_column_pixels(4, 4, 49)               # Type
+        self.pass_worksheet.set_column(5, 5, 40)                      # Completions
+        self.pass_worksheet.set_column(6, 6, 40)                      # Attempt
+        self.pass_worksheet.set_column(7, 7, None, percent_format_0)  # Completion percentage
+        self.pass_worksheet.set_column(9, 9, None, avg_format)        # Yards/Completion
+        self.pass_worksheet.set_column(10, 10, None, avg_format)      # Yards/Attempt
         if self.perform_calculations:
             extra_columns = 0
-            if config['AdditionalColumns']['PassYardsPerAttempt']:
-                column_index = 9
-                header.insert(column_index, 'Y/Att')
-                self.pass_worksheet.set_column(column_index, column_index, None, avg_format)
-                extra_columns += 1
             if config['AdditionalColumns']['PassInterceptionPercentage']:
-                column_index = 11 + extra_columns
+                column_index = 13
                 header.insert(column_index, 'Int %')
                 self.pass_worksheet.set_column(column_index, column_index, None, percent_format_1)
                 extra_columns += 1
             if config['AdditionalColumns']['PassSackPercentage']:
-                column_index = 12 + extra_columns
+                column_index = 14 + extra_columns
                 header.insert(column_index, 'Sack %')
                 self.pass_worksheet.set_column(column_index, column_index, None, percent_format_1)
                 extra_columns += 1
             if config['AdditionalColumns']['PassTouchdownPercentage']:
-                column_index = 13 + extra_columns
+                column_index = 15 + extra_columns
                 header.insert(column_index, 'TD %')
                 self.pass_worksheet.set_column(column_index, column_index, None, percent_format_1)
                 extra_columns += 1
@@ -909,34 +949,43 @@ class ExcelPdbWorkbook:
             self.run_categories_rows = 1
             self.run_categories_worksheet.freeze_panes(1, 0)
             self.run_categories_worksheet.autofilter('A1:B1')       # pyright: ignore[reportCallIssue]
+            if self.perform_calculations:
+                extra_columns = 0
+                if config['AdditionalColumns']['RunFumblePercentage']:
+                    column_index = 6
+                    header.insert(column_index, 'Fumble %')
+                    self.run_categories_worksheet.set_column(column_index, column_index, None, percent_format_1)
+                    extra_columns += 1
+                if config['AdditionalColumns']['RunTouchdownPercentage']:
+                    column_index = 7 + extra_columns
+                    header.insert(column_index, 'TD %')
+                    self.run_categories_worksheet.set_column(column_index, column_index, None, percent_format_1)
+                    extra_columns += 1
 
             # Setup the 'Pass Categories' worksheet
             self.pass_categories_worksheet = self.workbook.add_worksheet('Pass Categories')
-            header = ['Team', 'Category', 'Cmp/Att', 'Comp %', 'Yards', 'Y/Comp', 'Fumbles', 'Int', 'Sacks', 'TD', 'Pts']
-            self.pass_categories_worksheet.set_column_pixels(0, 0, 120)        # Team
-            self.pass_categories_worksheet.set_column_pixels(1, 1, 80)         # Category
-            self.pass_categories_worksheet.set_column(2, 2, None, text_format)
-            self.pass_categories_worksheet.set_column(3, 3, None, percent_format_0)
-            self.pass_categories_worksheet.set_column(5, 5, None, avg_format)
+            header = ['Team', 'Category', 'Cmp', 'Att', 'Comp %', 'Yards', 'Y/Comp', 'Y/Att', 'Fumbles', 'Int', 'Sacks', 'TD', 'Pts']
+            self.pass_categories_worksheet.set_column_pixels(0, 0, 120)              # Team
+            self.pass_categories_worksheet.set_column_pixels(1, 1, 80)               # Category
+            self.pass_categories_worksheet.set_column(2, 2, 40)                      # Completions
+            self.pass_categories_worksheet.set_column(3, 3, 40)                      # Attempts
+            self.pass_categories_worksheet.set_column(4, 4, None, percent_format_0)  # Completion percentage
+            self.pass_categories_worksheet.set_column(6, 6, None, avg_format)        # Yards/Completion
+            self.pass_categories_worksheet.set_column(7, 7, None, avg_format)        # Yards/Attempt
             if self.perform_calculations:
                 extra_columns = 0
-                if config['AdditionalColumns']['PassYardsPerAttempt']:
-                    column_index = 6
-                    header.insert(column_index, 'Y/Att')
-                    self.pass_categories_worksheet.set_column(column_index, column_index, None, avg_format)
-                    extra_columns += 1
                 if config['AdditionalColumns']['PassInterceptionPercentage']:
-                    column_index = 8 + extra_columns
+                    column_index = 10
                     header.insert(column_index, 'Int %')
                     self.pass_categories_worksheet.set_column(column_index, column_index, None, percent_format_1)
                     extra_columns += 1
                 if config['AdditionalColumns']['PassSackPercentage']:
-                    column_index = 9 + extra_columns
+                    column_index = 11 + extra_columns
                     header.insert(column_index, 'Sack %')
                     self.pass_categories_worksheet.set_column(column_index, column_index, None, percent_format_1)
                     extra_columns += 1
                 if config['AdditionalColumns']['PassTouchdownPercentage']:
-                    column_index = 10 + extra_columns
+                    column_index = 12 + extra_columns
                     header.insert(column_index, 'TD %')
                     self.pass_categories_worksheet.set_column(column_index, column_index, None, percent_format_1)
                     extra_columns += 1
@@ -1092,6 +1141,16 @@ class ExcelPdbWorkbook:
                     play_data.touchdowns_offense,
                     play_data.touchdowns_offense * 6]
 
+        if self.perform_calculations:
+            config = get_config()
+            extra_columns = 0
+            if config['AdditionalColumns']['RunFumblePercentage']:
+                row_data.insert(9, round(int(play_data.fumbles) / int(play_data.play_count), 3))
+                extra_columns += 1
+            if config['AdditionalColumns']['RunTouchdownPercentage']:
+                row_data.insert(10 + extra_columns, round(int(play_data.touchdowns_offense) / int(play_data.play_count), 3))
+                extra_columns += 1
+
         self.run_worksheet.write_row(self.run_rows, 0, row_data)
         self.run_rows += 1
 
@@ -1101,19 +1160,26 @@ class ExcelPdbWorkbook:
             type = 'Screen'
 
         if play_data.completions > 0:
-            avg = int(play_data.total_yards) / int(play_data.completions)
+            avgPerCompletion = int(play_data.total_yards) / int(play_data.completions)
         else:
-            avg = 0.0
+            avgPerCompletion = 0.0
+
+        if play_data.play_count > 0:
+            avgPerAttempt = int(play_data.total_yards) / int(play_data.play_count)
+        else:
+            avgPerAttempt = 0.0
 
         row_data = [play_data.team_name.decode('ASCII'),
                     play_attributes.category,
                     play_slot,
                     play_data.play_name.decode('ASCII'),
                     type,
-                    f"{str(play_data.completions)}/{str(play_data.play_count)}",
+                    play_data.completions,
+                    play_data.play_count,
                     round(int(play_data.completions) / int(play_data.play_count), 2),
                     play_data.total_yards,
-                    round(avg, 1),
+                    round(avgPerCompletion, 1),
+                    round(avgPerAttempt, 1),
                     play_data.fumbles,
                     play_data.interceptions,
                     play_data.sacks,
@@ -1123,17 +1189,14 @@ class ExcelPdbWorkbook:
         if self.perform_calculations:
             config = get_config()
             extra_columns = 0
-            if config['AdditionalColumns']['PassYardsPerAttempt']:
-                row_data.insert(9, round(int(play_data.total_yards) / int(play_data.play_count), 1))
-                extra_columns += 1
             if config['AdditionalColumns']['PassInterceptionPercentage']:
-                row_data.insert(11 + extra_columns, round(int(play_data.interceptions) / int(play_data.play_count), 3))
+                row_data.insert(13, round(int(play_data.interceptions) / int(play_data.play_count), 3))
                 extra_columns += 1
             if config['AdditionalColumns']['PassSackPercentage']:
-                row_data.insert(12 + extra_columns, round(int(play_data.sacks) / int(play_data.play_count), 3))
+                row_data.insert(14 + extra_columns, round(int(play_data.sacks) / int(play_data.play_count), 3))
                 extra_columns += 1
             if config['AdditionalColumns']['PassTouchdownPercentage']:
-                row_data.insert(13 + extra_columns, round(int(play_data.touchdowns_offense) / int(play_data.play_count), 3))
+                row_data.insert(15 + extra_columns, round(int(play_data.touchdowns_offense) / int(play_data.play_count), 3))
                 extra_columns += 1
 
         self.pass_worksheet.write_row(self.pass_rows, 0, row_data)
@@ -1204,21 +1267,38 @@ class ExcelPdbWorkbook:
                     category_data.touchdowns_offense,
                     category_data.touchdowns_offense * 6]
 
+        if self.perform_calculations:
+            config = get_config()
+            extra_columns = 0
+            if config['AdditionalColumns']['RunFumblePercentage']:
+                row_data.insert(6, round(int(category_data.fumbles) / int(category_data.play_count), 3))
+                extra_columns += 1
+            if config['AdditionalColumns']['RunTouchdownPercentage']:
+                row_data.insert(7 + extra_columns, round(int(category_data.sacks) / int(category_data.play_count), 3))
+                extra_columns += 1
+
         self.run_categories_worksheet.write_row(self.run_categories_rows, 0, row_data)
         self.run_categories_rows += 1
 
     def _add_pass_category(self, team_category, category_data):
         if category_data.completions > 0:
-            avg = int(category_data.total_yards) / int(category_data.completions)
+            avgPerCompletion = int(category_data.total_yards) / int(category_data.completions)
         else:
-            avg = 0.0
+            avgPerCompletion = 0.0
+
+        if category_data.play_count > 0:
+            avgPerAttempt = int(category_data.total_yards) / int(category_data.play_count)
+        else:
+            avgPerAttempt = 0.0
 
         row_data = [team_category[0],
                     team_category[1],
-                    f"{str(category_data.completions)}/{str(category_data.play_count)}",
+                    category_data.completions,
+                    category_data.play_count,
                     round(int(category_data.completions) / int(category_data.play_count), 2),
                     category_data.total_yards,
-                    round(avg, 1),
+                    round(avgPerCompletion, 1),
+                    round(avgPerAttempt, 1),
                     category_data.fumbles,
                     category_data.interceptions,
                     category_data.sacks,
@@ -1228,17 +1308,14 @@ class ExcelPdbWorkbook:
         if self.perform_calculations:
             config = get_config()
             extra_columns = 0
-            if config['AdditionalColumns']['PassYardsPerAttempt']:
-                row_data.insert(6, round(int(category_data.total_yards) / int(category_data.play_count), 1))
-                extra_columns += 1
             if config['AdditionalColumns']['PassInterceptionPercentage']:
-                row_data.insert(8 + extra_columns, round(int(category_data.interceptions) / int(category_data.play_count), 3))
+                row_data.insert(10, round(int(category_data.interceptions) / int(category_data.play_count), 3))
                 extra_columns += 1
             if config['AdditionalColumns']['PassSackPercentage']:
-                row_data.insert(9 + extra_columns, round(int(category_data.sacks) / int(category_data.play_count), 3))
+                row_data.insert(11 + extra_columns, round(int(category_data.sacks) / int(category_data.play_count), 3))
                 extra_columns += 1
             if config['AdditionalColumns']['PassTouchdownPercentage']:
-                row_data.insert(10 + extra_columns, round(int(category_data.touchdowns_offense) / int(category_data.play_count), 3))
+                row_data.insert(12 + extra_columns, round(int(category_data.touchdowns_offense) / int(category_data.play_count), 3))
                 extra_columns += 1
 
         self.pass_categories_worksheet.write_row(self.pass_categories_rows, 0, row_data)
@@ -1442,13 +1519,6 @@ def run(args=None):
         args = sys.argv[1:]
     parser = build_argument_parser()
     args = parser.parse_args(args)
-
-    # if os.path.isfile(args.outputfile):
-    #     overwrite = None
-    #     while overwrite not in ['y', 'n']:
-    #         overwrite = input(f'Overwrite {args.outputfile}? (Yes/No): ').lower()
-    #     if overwrite == 'n':
-    #         sys.exit(0)
 
     if args.config:
         set_config_path(args.config)
