@@ -10,14 +10,13 @@
 import argparse
 import ctypes
 import configparser
-from enum import Enum, IntEnum
+from enum import IntEnum
 import hashlib
 import math
-import os
 from pathlib import Path
 import socket
-import struct
 import sys
+from fbpro98_gameplan import PLN
 from .workbook import ExcelPdbWorkbook
 
 
@@ -385,161 +384,6 @@ class PDB:
                     self.plays[new_play_type][play_key] = new_play
                     # Remove the play from the original play type data
                     self.plays[original_play_type].pop(play_key)
-
-
-###############################################################################
-#
-# PlayInPlan - A class for storing play data as it exists in a game plan file
-#
-###############################################################################
-
-class PlayInPlan:
-    def __init__(self):
-        self.slot = -1
-        self.stock_flag = 0
-        self.play_category = 0
-        self.special_flag = 0
-        self.special_category = 0
-        self.user_category = 0
-        self.filename = ''
-        self.play_name = ''
-        self.offset = 0
-        self.size = 0
-
-    def get_name(self):
-        if self.filename:
-            return Path(self.filename).stem
-        return self.play_name
-
-
-###############################################################################
-#
-# PLN - A class for opening and parsing an FBPro98 game plan
-#
-###############################################################################
-
-class PLN:
-    # Constants
-    NUMBER_NORMAL_PLAYS = 64
-    NUMBER_SPECIAL_PLAYS = 10
-    NUMBER_STOCK_SPECIAL_PLAYS = 10
-    NUMBER_PLAY_SLOTS = NUMBER_NORMAL_PLAYS + NUMBER_SPECIAL_PLAYS + NUMBER_STOCK_SPECIAL_PLAYS
-    G95_HEADER_SIZE = 12
-    G95_OFFSETS_TABLE_SIZE = NUMBER_PLAY_SLOTS * 2
-
-    class CHUNK_ID(str, Enum):
-        G95 = "G95:"
-        J95 = "J95:"
-        S98 = "S98:"
-
-    ###########################################################################
-    #
-    # Initialization/Destruction
-    #
-    ###########################################################################
-
-    def __init__(self, filename):
-        self.filename = filename
-        self.normal_plays = {}
-        self.special_plays = {}
-        self.stock_special_plays = {}
-        self.plays_by_slot = {}
-
-        file_path = Path(self.filename)
-        with open(file_path, 'rb') as pln:
-            buffer = pln.read()
-            if len(buffer) < self.G95_HEADER_SIZE + self.G95_OFFSETS_TABLE_SIZE:
-                raise InvalidPLNError(f"File too small to contain PLN header and offsets table in {file_path}")
-
-            header = struct.unpack_from('<4sIBBBB', buffer, 0)
-            self.id = header[0].decode('ASCII')
-            self.g95_size = header[1]
-            self.unknown1 = header[2]
-            self.unknown2 = header[3]
-            self.unknown3 = header[4]
-            self.unknown4 = header[5]
-            if self.id != self.CHUNK_ID.G95:
-                raise InvalidPLNError(f"Invalid header \'{self.id}\' at {0:#x} in {file_path}")
-            if (self.unknown1 != 0 or self.unknown2 != 1 or self.unknown3 != 2 or self.unknown4 != 3):
-                print(f"Unknown data in header at {4:#X}: {self.unknown1:02x} {self.unknown2:02x} {self.unknown3:02x} {self.unknown4:02x}")
-
-            g95_end = 8 + self.g95_size
-            if g95_end > len(buffer):
-                raise InvalidPLNError(f"G95 chunk extends past end of file in {file_path}")
-
-            offsets = struct.unpack_from(f'<{self.NUMBER_PLAY_SLOTS}H', buffer, self.G95_HEADER_SIZE)
-
-            for play_index, relative_offset in enumerate(offsets):
-                if relative_offset == 0:
-                    continue
-
-                record_offset = self.G95_HEADER_SIZE + relative_offset
-                if record_offset < self.G95_HEADER_SIZE + self.G95_OFFSETS_TABLE_SIZE or record_offset >= g95_end:
-                    raise InvalidPLNError(
-                        f"Play offset {relative_offset:#x} for slot {play_index} is out of range in {file_path}"
-                    )
-
-                play = self._parse_play(buffer, record_offset, play_index, file_path)
-                self.plays_by_slot[play.slot] = play
-                self._store_play(play)
-
-    def _parse_play(self, buffer, buffer_offset, play_index, file_path):
-        if buffer_offset + 4 > len(buffer):
-            raise InvalidPLNError(f"Truncated play header at {buffer_offset:#x} in {file_path}")
-
-        data = struct.unpack_from('<BBBB', buffer, buffer_offset)
-        buffer_offset += 4
-
-        play = PlayInPlan()
-        play.slot = play_index
-        play.stock_flag = data[0]
-        play.play_category = data[1]
-        play.special_flag = data[2]
-        play.special_category = data[2]
-        play.user_category = data[3]
-
-        if play.stock_flag == 0:
-            play.filename, _ = self._read_c_string(buffer, buffer_offset, file_path)
-        elif play.stock_flag == 1:
-            if buffer_offset + 16 > len(buffer):
-                raise InvalidPLNError(f"Truncated stock play record at {buffer_offset:#x} in {file_path}")
-            data = struct.unpack_from('<8sII', buffer, buffer_offset)
-            play.play_name = data[0].decode('ASCII', errors='replace').rstrip('\x00 ')
-            play.offset = data[1]
-            play.size = data[2]
-        else:
-            raise InvalidPLNError(f"Invalid stock flag {play.stock_flag:#x} at slot {play_index} in {file_path}")
-
-        return play
-
-    def _read_c_string(self, buffer, buffer_offset, file_path):
-        string_end = buffer.find(b'\x00', buffer_offset)
-        if string_end == -1:
-            raise InvalidPLNError(f"Missing null terminator for play record at {buffer_offset:#x} in {file_path}")
-        value = buffer[buffer_offset:string_end].decode('ASCII', errors='replace')
-        return value, string_end + 1
-
-    def _store_play(self, play):
-        if play.slot < self.NUMBER_NORMAL_PLAYS:
-            self.normal_plays[play.get_name()] = play
-        elif play.slot < self.NUMBER_NORMAL_PLAYS + self.NUMBER_SPECIAL_PLAYS:
-            self.special_plays[play.get_name()] = play
-        else:
-            self.stock_special_plays[play.get_name()] = play
-
-
-###############################################################################
-#
-# InvalidPLNError - A custom exception
-#
-###############################################################################
-
-class InvalidPLNError(BaseException):
-    def __init__(self, msg):
-        self.msg = msg
-
-    def __str__(self):
-        return self.msg
 
 
 ###############################################################################

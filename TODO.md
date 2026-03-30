@@ -6,20 +6,17 @@ No immediate TODOs.
 
 ## Next Steps
 
-1. Extract the `.pln` reader/parser into `fbpro98-gameplan` as the shared library implementation.
-2. Replace the local `PLN` parsing code in `pnfl-pdbtoexcel` with a thin adapter to that library.
-3. Decide what the public game plan reader API should return:
-   - raw records
-   - domain objects
-   - or both
-4. Add a small set of real-file validation cases for `.pln` parsing once the shared reader is in place.
+1. Decide when `pnfl-pdbtoexcel` should declare `fbpro98-gameplan` as a package dependency instead of relying on sibling editable installs during development.
+2. Add a small set of real `.pln` fixtures once redistributable sample files are available.
+3. Decide whether `fbpro98-gameplan` should stay compatibility-shaped around `PLN`/`PlayInPlan` or expose a cleaner primary API with a thin adapter layer here.
+4. Split more of `PdbToExcel.py` into focused modules now that `.pln` parsing is out of the file.
 
-### Extraction Notes
+### Completed
 
-- `pnfl-pdbtoexcel` is the first concrete consumer for the shared `.pln` library.
-- The current project only needs the `.pln` behavior required by `pnfl-pdbtoexcel`, especially normal-play lookup/slot handling used during workbook generation.
-- Special teams and stock special slot handling are not currently needed by `pnfl-pdbtoexcel`, so they should not drive the first library API.
-- Prefer designing the shared `.pln` API from real caller needs first, then expanding it later for additional tools.
+- Extracted the `.pln` reader into `fbpro98-gameplan`.
+- Replaced the local `PLN` parser in `pnfl-pdbtoexcel` with library imports.
+- Added focused parser tests in `fbpro98-gameplan`.
+- Kept the initial shared API shaped around real `pnfl-pdbtoexcel` needs: slot lookup and normal-play lookup by name.
 
 ## Project Setup / Maintenance
 
@@ -31,7 +28,6 @@ No immediate TODOs.
 
 ## Nice To Have
 
-1. Consider splitting `PdbToExcel.py` into smaller modules once the `.pln` parsing is moved out.
-2. Tighten the README setup/usage notes after the GitHub move.
-3. Add a thin `cli.py` entry once the different components have been extracted to shared modules and/or libraries.
-4. Rename `PdbToExcel.py` to a more Pythonic module name/structure once the CLI and core components are separated cleanly.
+1. Rename `PdbToExcel.py` to a more Pythonic module name once the remaining responsibilities are split out.
+2. Add a thin `cli.py` entry once the CLI and workbook-generation code are separated cleanly.
+3. Expand test coverage around workbook generation paths that use offensive and defensive game plans together.

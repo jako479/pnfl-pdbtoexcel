@@ -4,6 +4,8 @@ Exports the contents of a WinLogStats database (.pdb) into an Excel worksheet (.
 
 Current project TODOs live in `TODO.md`.
 
+`.pln` parsing now comes from the sibling `fbpro98-gameplan` library rather than local parser code in this repo.
+
 `PdbToExcel.py` now looks for `PdbToExcel.ini` in this order:
 
 1. Next to the script itself, which matches your distributed folder layout.
@@ -14,6 +16,7 @@ Current project TODOs live in `TODO.md`.
 ```bash
 python -m venv .venv
 source .venv/bin/activate  # or .venv\Scripts\activate on Windows
+pip install -e ..\fbpro98-gameplan
 pip install -e ".[dev]"
 ```
 
@@ -85,5 +88,6 @@ Detailed maintenance steps live in `docs/vba-workflow.md`.
 ## Testing
 
 ```bash
-pytest
+.\.venv\Scripts\python -m pytest tests
+.\.venv\Scripts\python -m ruff check src tests
 ```

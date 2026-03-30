@@ -1,12 +1,8 @@
 import ctypes
 import json
 from pathlib import Path
-import sys
 
 import pytest
-
-project_root = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(project_root / "src"))
 
 from pnfl_pdbtoexcel.PdbToExcel import InvalidPDBError, PDB, PLAY_DATA
 
