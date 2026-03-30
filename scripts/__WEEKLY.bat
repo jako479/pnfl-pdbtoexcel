@@ -1,5 +1,6 @@
 @ECHO OFF
 SETLOCAL ENABLEDELAYEDEXPANSION
+SET "PYTHONPATH=%~dp0..\src"
 
 :: NOTE: Must use file extension .xlsm to enable double-click sorting
 
@@ -38,7 +39,7 @@ FOR /L %%W IN (1,1,19) DO (
     SET "XLSM=%GAMELOG_DIR%\!SEASON!\!WEEK!.xlsm"
 
     IF EXIST "!PDB!" (
-        py .\src\pnfl_pdbtoexcel\PdbToExcel.py -o "!OGP!" -d "!DGP!" "!PDB!" "!XLSM!" --skip-calcs
+        py -m pnfl_pdbtoexcel -o "!OGP!" -d "!DGP!" "!PDB!" "!XLSM!" --skip-calcs
     )
 )
 
@@ -47,7 +48,7 @@ FOR %%F IN ("%GAMELOG_DIR%\*.PDB") DO (
     SET "PDB=%%~fF"
     SET "XLSM=%%~dpnF.xlsm"
 
-	py .\src\pnfl_pdbtoexcel\PdbToExcel.py -o "%HARDCODED_OGP%" -d "%HARDCODED_DGP%" "!PDB!" "!XLSM!"
+	py -m pnfl_pdbtoexcel -o "%HARDCODED_OGP%" -d "%HARDCODED_DGP%" "!PDB!" "!XLSM!"
 )
 
 ENDLOCAL

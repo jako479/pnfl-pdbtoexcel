@@ -18,7 +18,7 @@ from pathlib import Path
 import socket
 import struct
 import sys
-from workbook import ExcelPdbWorkbook
+from .workbook import ExcelPdbWorkbook
 
 
 SCRIPT_DIR = Path(__file__).resolve().parent

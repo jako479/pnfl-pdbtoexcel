@@ -36,10 +36,16 @@ pip install -e ".[dev]"
 
 ## Usage
 
-Run the script directly:
+Run as a package module:
 
 ```bash
-python src/pnfl_pdbtoexcel/PdbToExcel.py -d C:\DEF\DGP.pln -o C:\OFF\OGP.pln C:\PATH\TO\PDB.pdb C:\PATH\TO\XLSM.xlsm
+python -m pnfl_pdbtoexcel -d C:\DEF\DGP.pln -o C:\OFF\OGP.pln C:\PATH\TO\PDB.pdb C:\PATH\TO\XLSM.xlsm
+```
+
+Or use the top-level wrapper script:
+
+```bash
+python PdbToExcel.py -d C:\DEF\DGP.pln -o C:\OFF\OGP.pln C:\PATH\TO\PDB.pdb C:\PATH\TO\XLSM.xlsm
 ```
 
 For a distributed copy, place these files together in the same folder:

@@ -1,15 +1,10 @@
 from pathlib import Path
-import sys
 
 import xlsxwriter
 
 
 def _get_pdbtoexcel_module():
-    main_module = sys.modules.get("__main__")
-    if main_module and hasattr(main_module, "get_config"):
-        return main_module
-
-    import PdbToExcel as pdbtoexcel_module
+    from . import PdbToExcel as pdbtoexcel_module
     return pdbtoexcel_module
 
 

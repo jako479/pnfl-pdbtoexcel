@@ -11,6 +11,9 @@ readme = "README.md"
 requires-python = ">=3.10"
 dependencies = ["xlsxwriter"]
 
+[project.scripts]
+pdbtoexcel = "pnfl_pdbtoexcel:run"
+
 [project.optional-dependencies]
 dev = [
     "pytest",
