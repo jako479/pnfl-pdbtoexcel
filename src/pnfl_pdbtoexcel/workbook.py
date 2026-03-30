@@ -2,6 +2,8 @@ from pathlib import Path
 
 import xlsxwriter
 
+from .pdb import PLAY_DATA
+
 
 def _get_pdbtoexcel_module():
     from . import PdbToExcel as pdbtoexcel_module
@@ -10,10 +12,6 @@ def _get_pdbtoexcel_module():
 
 def _get_config():
     return _get_pdbtoexcel_module().get_config()
-
-def _get_play_data_class():
-    return _get_pdbtoexcel_module().PLAY_DATA
-
 
 def _get_runtime_path(filename):
     return _get_pdbtoexcel_module().get_runtime_path(filename)
@@ -275,21 +273,19 @@ class ExcelPdbWorkbook:
             self.workbook.close()
 
     def add_play(self, play_data, play_slot, play_attributes):
-        play_data_class = _get_play_data_class()
-        if play_data.play_type == play_data_class.PLAY_TYPE.RUN:
+        if play_data.play_type == PLAY_DATA.PLAY_TYPE.RUN:
             self._add_run_play(play_data, play_slot, play_attributes)
-        elif play_data.play_type == play_data_class.PLAY_TYPE.PASS:
+        elif play_data.play_type == PLAY_DATA.PLAY_TYPE.PASS:
             self._add_pass_play(play_data, play_slot, play_attributes)
-        elif play_data.play_type == play_data_class.PLAY_TYPE.DEFENSE:
+        elif play_data.play_type == PLAY_DATA.PLAY_TYPE.DEFENSE:
             self._add_defense_play(play_data, play_slot, play_attributes)
 
     def add_category(self, team_category, category_data):
-        play_data_class = _get_play_data_class()
-        if category_data.play_type == play_data_class.PLAY_TYPE.RUN:
+        if category_data.play_type == PLAY_DATA.PLAY_TYPE.RUN:
             self._add_run_category(team_category, category_data)
-        elif category_data.play_type == play_data_class.PLAY_TYPE.PASS:
+        elif category_data.play_type == PLAY_DATA.PLAY_TYPE.PASS:
             self._add_pass_category(team_category, category_data)
-        elif category_data.play_type == play_data_class.PLAY_TYPE.DEFENSE:
+        elif category_data.play_type == PLAY_DATA.PLAY_TYPE.DEFENSE:
             self._add_defense_category(team_category, category_data)
 
     def add_tendency(self, t):
