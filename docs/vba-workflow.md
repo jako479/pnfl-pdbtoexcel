@@ -9,7 +9,7 @@ project binary into the generated workbook.
 - `src/pnfl_pdbtoexcel/vbaProject.bin`
 - `src/pnfl_pdbtoexcel/vbaProject_categories.bin`
 
-`PdbToExcel.py` chooses between them based on whether category-stats output is
+`pdb_to_excel.py` chooses between them based on whether category-stats output is
 enabled.
 
 More specifically:

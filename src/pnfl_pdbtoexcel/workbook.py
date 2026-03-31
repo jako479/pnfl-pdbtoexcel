@@ -6,7 +6,7 @@ from .pdb import PLAY_DATA
 
 
 def _get_pdbtoexcel_module():
-    from . import PdbToExcel as pdbtoexcel_module
+    from . import pdb_to_excel as pdbtoexcel_module
     return pdbtoexcel_module
 
 

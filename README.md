@@ -6,10 +6,10 @@ Current project TODOs live in `TODO.md`.
 
 `.pln` parsing now comes from the sibling `fbpro98-gameplan` library rather than local parser code in this repo.
 
-`PdbToExcel.py` now looks for `PdbToExcel.ini` in this order:
+`pdb_to_excel.py` now looks for `pdb_to_excel.ini` in this order:
 
 1. Next to the script itself, which matches your distributed folder layout.
-2. In `config/PdbToExcel.ini`, which keeps the working project tidy.
+2. In `config/pdb_to_excel.ini`, which keeps the working project tidy.
 
 ## Setup
 
@@ -48,13 +48,13 @@ python -m pnfl_pdbtoexcel -d C:\DEF\DGP.pln -o C:\OFF\OGP.pln C:\PATH\TO\PDB.pdb
 Or use the top-level wrapper script:
 
 ```bash
-python PdbToExcel.py -d C:\DEF\DGP.pln -o C:\OFF\OGP.pln C:\PATH\TO\PDB.pdb C:\PATH\TO\XLSM.xlsm
+python pdb_to_excel.py -d C:\DEF\DGP.pln -o C:\OFF\OGP.pln C:\PATH\TO\PDB.pdb C:\PATH\TO\XLSM.xlsm
 ```
 
 For a distributed copy, place these files together in the same folder:
 
-- `PdbToExcel.py`
-- `PdbToExcel.ini`
+- `pdb_to_excel.py`
+- `pdb_to_excel.ini`
 - `LICENSE.txt`
 - `PdbToExcel.bat`
 - `vbaProject.bin`
@@ -62,7 +62,7 @@ For a distributed copy, place these files together in the same folder:
 
 ## VBA Macros
 
-When writing `.xlsm` output, `PdbToExcel.py` uses `xlsxwriter` to embed a prebuilt VBA project:
+When writing `.xlsm` output, `pdb_to_excel.py` uses `xlsxwriter` to embed a prebuilt VBA project:
 
 - `vbaProject.bin`
 - `vbaProject_categories.bin`

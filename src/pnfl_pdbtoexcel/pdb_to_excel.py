@@ -36,6 +36,8 @@ def set_config_path(config_path):
 def get_config_path():
     if not hasattr(get_config_path, "config_path"):
         candidates = [
+            SCRIPT_DIR / "pdb_to_excel.ini",
+            PROJECT_DIR / "config" / "pdb_to_excel.ini",
             SCRIPT_DIR / "PdbToExcel.ini",
             PROJECT_DIR / "config" / "PdbToExcel.ini",
         ]

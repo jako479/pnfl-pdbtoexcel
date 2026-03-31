@@ -1,5 +1,5 @@
 """pnfl-pdbtoexcel package."""
 
-from .PdbToExcel import run
+from .pdb_to_excel import run
 
 __all__ = ["run"]
