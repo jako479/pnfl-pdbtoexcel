@@ -12,7 +12,7 @@ requires-python = ">=3.10"
 dependencies = ["xlsxwriter", "fbpro98-gameplan", "pnfl-playpool"]
 
 [project.scripts]
-pdbtoexcel = "pnfl_pdbtoexcel:run"
+pdbtoexcel = "pnfl_pdbtoexcel:main"
 
 [project.optional-dependencies]
 dev = [

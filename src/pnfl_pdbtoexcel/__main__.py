@@ -1,5 +1,4 @@
-from .pdb_to_excel import run
-
+from .cli import main
 
 if __name__ == "__main__":
-    raise SystemExit(run())
+    raise SystemExit(main())

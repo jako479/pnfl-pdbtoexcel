@@ -4,19 +4,8 @@ import xlsxwriter
 
 from pnfl_playpool import DefensivePlayRecord, OffensivePlayRecord, PlayRecord
 
+from .config import get_config, get_runtime_path
 from .pdb import PLAY_DATA
-
-
-def _get_pdbtoexcel_module():
-    from . import pdb_to_excel as pdbtoexcel_module
-    return pdbtoexcel_module
-
-
-def _get_config():
-    return _get_pdbtoexcel_module().get_config()
-
-def _get_runtime_path(filename):
-    return _get_pdbtoexcel_module().get_runtime_path(filename)
 
 
 class ExcelPdbWorkbook:
@@ -26,7 +15,7 @@ class ExcelPdbWorkbook:
         self.perform_calculations = perform_calculations
 
     def __enter__(self):
-        config = _get_config()
+        config = get_config()
         filepath = Path(self.filename)
         filepath.parent.mkdir(exist_ok=True)
 
@@ -34,9 +23,9 @@ class ExcelPdbWorkbook:
         file_extension = filepath.suffix
         if file_extension == '.xlsm':
             if config['Settings']['CalculateCategoryStats']:
-                self.workbook.add_vba_project(str(_get_runtime_path("vbaProject_categories.bin")))
+                self.workbook.add_vba_project(str(get_runtime_path("vbaProject_categories.bin")))
             else:
-                self.workbook.add_vba_project(str(_get_runtime_path("vbaProject.bin")))
+                self.workbook.add_vba_project(str(get_runtime_path("vbaProject.bin")))
 
         text_format = self.workbook.add_format({'num_format': '@'})
         avg_format = self.workbook.add_format({'num_format': '0.0'})
@@ -357,7 +346,7 @@ class ExcelPdbWorkbook:
             play_data.team_name.decode('ASCII'),
             play_record.pool_category,
             play_slot,
-            play_name,
+            play_data.play_name.decode("ASCII"),
             play_type,
             play_data.play_count,
             play_data.total_yards,
@@ -368,7 +357,7 @@ class ExcelPdbWorkbook:
         ]
 
         if self.perform_calculations:
-            config = _get_config()
+            config = get_config()
             extra_columns = 0
             if config['AdditionalColumns']['RunFumblePercentage']:
                 row_data.insert(9, round(int(play_data.fumbles) / int(play_data.play_count), 3))
@@ -415,7 +404,7 @@ class ExcelPdbWorkbook:
         ]
 
         if self.perform_calculations:
-            config = _get_config()
+            config = get_config()
             extra_columns = 0
             if config['AdditionalColumns']['PassInterceptionPercentage']:
                 row_data.insert(13, round(int(play_data.interceptions) / int(play_data.play_count), 3))
@@ -463,7 +452,7 @@ class ExcelPdbWorkbook:
         ]
 
         if self.perform_calculations:
-            config = _get_config()
+            config = get_config()
             extra_columns = 0
             if config['AdditionalColumns']['DefenseTurnoverPercentage']:
                 row_data.insert(11, round((int(play_data.fumbles) + int(play_data.interceptions)) / int(play_data.play_count), 3))
@@ -496,7 +485,7 @@ class ExcelPdbWorkbook:
         ]
 
         if self.perform_calculations:
-            config = _get_config()
+            config = get_config()
             extra_columns = 0
             if config['AdditionalColumns']['RunFumblePercentage']:
                 row_data.insert(6, round(int(category_data.fumbles) / int(category_data.play_count), 3))
@@ -536,7 +525,7 @@ class ExcelPdbWorkbook:
         ]
 
         if self.perform_calculations:
-            config = _get_config()
+            config = get_config()
             extra_columns = 0
             if config['AdditionalColumns']['PassInterceptionPercentage']:
                 row_data.insert(10, round(int(category_data.interceptions) / int(category_data.play_count), 3))
@@ -577,7 +566,7 @@ class ExcelPdbWorkbook:
         ]
 
         if self.perform_calculations:
-            config = _get_config()
+            config = get_config()
             extra_columns = 0
             if config['AdditionalColumns']['DefenseTurnoverPercentage']:
                 row_data.insert(8, round((int(category_data.fumbles) + int(category_data.interceptions)) / int(category_data.play_count), 3))
@@ -593,7 +582,7 @@ class ExcelPdbWorkbook:
         self.def_categories_rows += 1
 
     def _add_conditional_format(self):
-        config = _get_config()
+        config = get_config()
         border_format = self.workbook.add_format()
         border_format.set_border_color('#0000FF')
         border_format.set_top(1)

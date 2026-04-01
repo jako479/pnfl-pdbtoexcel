@@ -1,5 +1,5 @@
 """pnfl-pdbtoexcel package."""
 
-from .pdb_to_excel import run
+from .cli import main
 
-__all__ = ["run"]
+__all__ = ["main"]
