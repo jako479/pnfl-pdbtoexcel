@@ -9,7 +9,7 @@ description = "Exports the contents of a WinLogStats database (.pdb) into an Exc
 authors = [{name = "Brian J"}]
 readme = "README.md"
 requires-python = ">=3.10"
-dependencies = ["xlsxwriter"]
+dependencies = ["xlsxwriter", "fbpro98-gameplan", "pnfl-playpool"]
 
 [project.scripts]
 pdbtoexcel = "pnfl_pdbtoexcel:run"

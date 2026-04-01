@@ -2,6 +2,8 @@ from pathlib import Path
 
 import xlsxwriter
 
+from pnfl_playpool import DefensivePlayRecord, OffensivePlayRecord, PlayRecord
+
 from .pdb import PLAY_DATA
 
 
@@ -272,13 +274,13 @@ class ExcelPdbWorkbook:
             self._add_conditional_format()
             self.workbook.close()
 
-    def add_play(self, play_data, play_slot, play_attributes):
+    def add_play(self, play_data, play_slot, play_record):
         if play_data.play_type == PLAY_DATA.PLAY_TYPE.RUN:
-            self._add_run_play(play_data, play_slot, play_attributes)
+            self._add_run_play(play_data, play_slot, play_record)
         elif play_data.play_type == PLAY_DATA.PLAY_TYPE.PASS:
-            self._add_pass_play(play_data, play_slot, play_attributes)
+            self._add_pass_play(play_data, play_slot, play_record)
         elif play_data.play_type == PLAY_DATA.PLAY_TYPE.DEFENSE:
-            self._add_defense_play(play_data, play_slot, play_attributes)
+            self._add_defense_play(play_data, play_slot, play_record)
 
     def add_category(self, team_category, category_data):
         if category_data.play_type == PLAY_DATA.PLAY_TYPE.RUN:
@@ -341,10 +343,9 @@ class ExcelPdbWorkbook:
         self.tendencies_worksheet.write_row(self.tendencies_rows, 0, row_data)
         self.tendencies_rows += 1
 
-    def _add_run_play(self, play_data, play_slot, play_attributes):
-        play_name = play_data.play_name.decode('ASCII')
+    def _add_run_play(self, play_data, play_slot, play_record):
         play_type = ''
-        if play_name[1] == '1' or play_name[2] == '1':
+        if isinstance(play_record, OffensivePlayRecord) and play_record.qb_draw:
             play_type = 'QB draw'
 
         if play_data.play_count > 0:
@@ -354,7 +355,7 @@ class ExcelPdbWorkbook:
 
         row_data = [
             play_data.team_name.decode('ASCII'),
-            play_attributes.category,
+            play_record.pool_category,
             play_slot,
             play_name,
             play_type,
@@ -379,9 +380,9 @@ class ExcelPdbWorkbook:
         self.run_worksheet.write_row(self.run_rows, 0, row_data)
         self.run_rows += 1
 
-    def _add_pass_play(self, play_data, play_slot, play_attributes):
+    def _add_pass_play(self, play_data, play_slot, play_record):
         play_type = ''
-        if play_attributes.screen:
+        if isinstance(play_record, OffensivePlayRecord) and play_record.screen:
             play_type = 'Screen'
 
         if play_data.completions > 0:
@@ -396,7 +397,7 @@ class ExcelPdbWorkbook:
 
         row_data = [
             play_data.team_name.decode('ASCII'),
-            play_attributes.category,
+            play_record.pool_category,
             play_slot,
             play_data.play_name.decode('ASCII'),
             play_type,
@@ -429,14 +430,10 @@ class ExcelPdbWorkbook:
         self.pass_worksheet.write_row(self.pass_rows, 0, row_data)
         self.pass_rows += 1
 
-    def _add_defense_play(self, play_data, play_slot, play_attributes):
+    def _add_defense_play(self, play_data, play_slot, play_record):
         play_type = ''
-        if play_attributes.three_four:
-            play_type = '3-4'
-        elif play_attributes.four_three:
-            play_type = '4-3'
-        elif play_attributes.run_and_shoot:
-            play_type = 'R&S'
+        if isinstance(play_record, DefensivePlayRecord) and play_record.personnel_grouping is not None:
+            play_type = play_record.personnel_grouping.value
 
         if play_data.run_plays_against > 0:
             rush_avg = int(play_data.rush_yards_allowed) / int(play_data.run_plays_against)
@@ -450,7 +447,7 @@ class ExcelPdbWorkbook:
 
         row_data = [
             play_data.team_name.decode('ASCII'),
-            play_attributes.category,
+            play_record.pool_category,
             play_slot,
             play_data.play_name.decode('ASCII'),
             play_type,

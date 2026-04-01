@@ -173,6 +173,8 @@ class PDB:
                         )
 
     def convert_invalid_play_data(self, play_pool):
+        from pnfl_playpool import OffensivePlayRecord
+
         play_type_swap = {
             PLAY_DATA.PLAY_TYPE.RUN: PLAY_DATA.PLAY_TYPE.PASS,
             PLAY_DATA.PLAY_TYPE.PASS: PLAY_DATA.PLAY_TYPE.RUN,
@@ -180,15 +182,12 @@ class PDB:
         for original_play_type in (PLAY_DATA.PLAY_TYPE.RUN, PLAY_DATA.PLAY_TYPE.PASS):
             for play_key in list(self.plays[original_play_type].keys()):
                 play_name = play_key[1]
+                record = play_pool.find_by_name(play_name)
+                if not isinstance(record, OffensivePlayRecord):
+                    continue
                 if (
-                    (
-                        original_play_type == PLAY_DATA.PLAY_TYPE.RUN
-                        and play_pool.is_pass_play(play_name)
-                    )
-                    or (
-                        original_play_type == PLAY_DATA.PLAY_TYPE.PASS
-                        and play_pool.is_run_play(play_name)
-                    )
+                    (original_play_type == PLAY_DATA.PLAY_TYPE.RUN and record.is_pass)
+                    or (original_play_type == PLAY_DATA.PLAY_TYPE.PASS and record.is_run)
                 ):
                     new_play_type = play_type_swap[original_play_type]
                     original_play = self.plays[original_play_type][play_key]
