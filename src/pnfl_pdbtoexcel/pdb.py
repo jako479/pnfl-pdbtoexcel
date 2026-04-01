@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import ctypes
+import logging
 from enum import IntEnum
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 
 RENAMED_PLAYS = {
@@ -154,8 +157,9 @@ class PDB:
                                 play_in_pdb += original_data
                             self.plays[play_type][play_key] = play_in_pdb
                     else:
-                        print(
-                            f"Skipping invalid play data at {pdb.tell()-ctypes.sizeof(PLAY_DATA):#x}"
+                        logger.warning(
+                            "Skipping invalid play data at %#x",
+                            pdb.tell() - ctypes.sizeof(PLAY_DATA),
                         )
                 elif data_type == self.DATA_TYPE.TENDENCY:
                     data = pdb.read(ctypes.sizeof(TENDENCY_DATA))
@@ -163,9 +167,9 @@ class PDB:
                     if tendency_data.is_valid():
                         self.tendencies.append(tendency_data)
                     else:
-                        print(
-                            "Skipping invalid tendency data at "
-                            f"{pdb.tell()-ctypes.sizeof(TENDENCY_DATA):#x}"
+                        logger.warning(
+                            "Skipping invalid tendency data at %#x",
+                            pdb.tell() - ctypes.sizeof(TENDENCY_DATA),
                         )
 
     def convert_invalid_play_data(self, play_pool):

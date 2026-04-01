@@ -10,6 +10,7 @@
 import argparse
 import configparser
 import hashlib
+import logging
 import math
 from pathlib import Path
 import socket
@@ -18,6 +19,7 @@ from fbpro98_gameplan import PLN
 from .pdb import PDB, PLAY_DATA
 from .workbook import ExcelPdbWorkbook
 
+logger = logging.getLogger(__name__)
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 PROJECT_DIR = SCRIPT_DIR.parent.parent
@@ -82,6 +84,24 @@ DEFENSE_OUTPUT_CATEGORIES = {
 }
 
 
+_team_override: str | None = None
+_pnfl_path_override: str | None = None
+
+
+def set_team(team: str | None) -> None:
+    global _team_override
+    _team_override = team
+    if hasattr(get_config, 'config_dictionary'):
+        delattr(get_config, 'config_dictionary')
+
+
+def set_pnfl_path(pnfl_path: str | None) -> None:
+    global _pnfl_path_override
+    _pnfl_path_override = pnfl_path
+    if hasattr(get_config, 'config_dictionary'):
+        delattr(get_config, 'config_dictionary')
+
+
 def get_config():
     if not hasattr(get_config, 'config_dictionary'):
         md5 = hashlib.md5(socket.gethostname().encode())
@@ -103,6 +123,10 @@ def get_config():
         config_dict['AdditionalColumns']['DefenseTurnoverPercentage'] = cp.getboolean("AdditionalColumns", "DefenseTurnoverPercentage", fallback=True)
         config_dict['AdditionalColumns']['DefenseSackPercentage'] = cp.getboolean("AdditionalColumns", "DefenseSackPercentage", fallback=True)
         config_dict['AdditionalColumns']['DefenseOffTdPercentage'] = cp.getboolean("AdditionalColumns", "DefenseOffTdPercentage", fallback=True)
+        if _team_override is not None:
+            config_dict['Settings']['Team'] = _team_override
+        if _pnfl_path_override is not None:
+            config_dict['Settings']['PnflPath'] = _pnfl_path_override
         get_config.config_dictionary = config_dict
     return get_config.config_dictionary
 
@@ -150,9 +174,9 @@ class PdbWorkbookCreator:
     ###########################################################################
 
     def create_workbook(self, filename, perform_calculations, calculate_totals, filter_total_stats):
-        print(f"Attempting to create \'{filename}\'")
+        logger.info("Attempting to create '%s'", filename)
         if not perform_calculations:
-            print("Skipping extra calculations")
+            logger.info("Skipping extra calculations")
 
         with ExcelPdbWorkbook(filename, perform_calculations) as workbook:
             config = get_config()
@@ -187,7 +211,7 @@ class PdbWorkbookCreator:
                     for category_name, category_data in categories_data.items():
                         workbook.add_category(('`Total Stats', category_name), category_data)
 
-        print("Conversion complete")
+        logger.info("Conversion complete")
 
 
     def _iter_tracked_plays(self):
@@ -225,9 +249,9 @@ class PdbWorkbookCreator:
         # if there is no matching current play file in the play pool.
         if missing_play_files_logged is not None and play_name not in missing_play_files_logged:
             if play_name in DELETED_PLAYS:
-                print(f"Skipping deleted play \'{play_name}\'")
+                logger.info("Skipping deleted play '%s'", play_name)
             else:
-                print(f"Play file not found for play \'{play_name}\'")
+                logger.warning("Play file not found for play '%s'", play_name)
             missing_play_files_logged.add(play_name)
 
 
@@ -469,6 +493,8 @@ def build_argument_parser():
     parser.add_argument("--config", type=lambda value: valid_existing_file(value, ('.ini',)), help="use this INI file instead of the default config lookup")
     parser.add_argument("-c", "--skip-calcs", default=False, action='store_true', help="prevents the extra calculation columns (overrides config settings)")
     parser.add_argument("-t", "--skip-totals", default=False, action='store_true', help="prevents totalling stats (overrides config settings)")
+    parser.add_argument("--team", help="team name (overrides config Settings.Team)")
+    parser.add_argument("--pnfl-path", help="path to PNFL play tree (overrides config Settings.PnflPath)")
     return parser
 
 
@@ -480,8 +506,15 @@ def run(args=None):
     parser = build_argument_parser()
     args = parser.parse_args(args)
 
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(levelname)s: %(message)s",
+    )
+
     if args.config:
         set_config_path(args.config)
+    set_team(args.team)
+    set_pnfl_path(args.pnfl_path)
 
     config = get_config()
 
