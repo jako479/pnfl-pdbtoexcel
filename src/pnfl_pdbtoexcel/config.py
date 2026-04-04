@@ -5,17 +5,15 @@ import hashlib
 import socket
 from pathlib import Path
 
-
 SCRIPT_DIR = Path(__file__).resolve().parent
 PROJECT_DIR = SCRIPT_DIR.parent.parent
 
 DEFAULT_PNFL_PATH = r"C:\SIERRA\FbPro98\PNFL"
 
 CONFIG_CANDIDATES = [
+    Path.cwd() / "pdb_to_excel.ini",
     SCRIPT_DIR / "pdb_to_excel.ini",
     PROJECT_DIR / "config" / "pdb_to_excel.ini",
-    SCRIPT_DIR / "PdbToExcel.ini",
-    PROJECT_DIR / "config" / "PdbToExcel.ini",
 ]
 
 _config_path: Path | None = None
@@ -76,14 +74,30 @@ def get_config() -> dict[str, dict[str, object]]:
             ),
         },
         "AdditionalColumns": {
-            "RunFumblePercentage": cp.getboolean("AdditionalColumns", "RunFumblePercentage", fallback=True),
-            "RunTouchdownPercentage": cp.getboolean("AdditionalColumns", "RunTouchdownPercentage", fallback=True),
-            "PassInterceptionPercentage": cp.getboolean("AdditionalColumns", "PassInterceptionPercentage", fallback=True),
-            "PassSackPercentage": cp.getboolean("AdditionalColumns", "PassSackPercentage", fallback=True),
-            "PassTouchdownPercentage": cp.getboolean("AdditionalColumns", "PassTouchdownPercentage", fallback=True),
-            "DefenseTurnoverPercentage": cp.getboolean("AdditionalColumns", "DefenseTurnoverPercentage", fallback=True),
-            "DefenseSackPercentage": cp.getboolean("AdditionalColumns", "DefenseSackPercentage", fallback=True),
-            "DefenseOffTdPercentage": cp.getboolean("AdditionalColumns", "DefenseOffTdPercentage", fallback=True),
+            "RunFumblePercentage": cp.getboolean(
+                "AdditionalColumns", "RunFumblePercentage", fallback=True
+            ),
+            "RunTouchdownPercentage": cp.getboolean(
+                "AdditionalColumns", "RunTouchdownPercentage", fallback=True
+            ),
+            "PassInterceptionPercentage": cp.getboolean(
+                "AdditionalColumns", "PassInterceptionPercentage", fallback=True
+            ),
+            "PassSackPercentage": cp.getboolean(
+                "AdditionalColumns", "PassSackPercentage", fallback=True
+            ),
+            "PassTouchdownPercentage": cp.getboolean(
+                "AdditionalColumns", "PassTouchdownPercentage", fallback=True
+            ),
+            "DefenseTurnoverPercentage": cp.getboolean(
+                "AdditionalColumns", "DefenseTurnoverPercentage", fallback=True
+            ),
+            "DefenseSackPercentage": cp.getboolean(
+                "AdditionalColumns", "DefenseSackPercentage", fallback=True
+            ),
+            "DefenseOffTdPercentage": cp.getboolean(
+                "AdditionalColumns", "DefenseOffTdPercentage", fallback=True
+            ),
         },
     }
 

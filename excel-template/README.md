@@ -1,37 +1,27 @@
-# Excel Templates
+# VBA Templates
 
-Store the master macro-enabled Excel workbooks for `pnfl-pdbtoexcel` here.
+Master macro-enabled workbooks for pnfl-pdbtoexcel. The `.bin` files in
+`src/pnfl_pdbtoexcel/` are extracted from these and embedded into generated
+`.xlsm` output by xlsxwriter.
 
-Recommended files:
+| Template | Binary | Used when |
+|---|---|---|
+| `PdbToExcel.xlsm` | `vbaProject.bin` | Normal output |
+| `PdbToExcelCategories.xlsm` | `vbaProject_categories.bin` | Category stats enabled |
 
-- `PdbToExcel.xlsm`
-- `PdbToExcelCategories.xlsm`
+## Updating VBA
 
-Purpose:
-
-- `PdbToExcel.xlsm` is the source workbook for `src/pnfl_pdbtoexcel/vbaProject.bin`
-- `PdbToExcelCategories.xlsm` is the source workbook for
-  `src/pnfl_pdbtoexcel/vbaProject_categories.bin`
-
-When the VBA changes:
-
-1. Open the relevant `.xlsm` workbook in Excel.
-2. Update the VBA.
-3. Save the workbook.
-4. Extract a fresh `vbaProject.bin` with:
+1. Edit VBA in the `.xlsm`, save.
+2. Extract and replace the binary:
 
 ```powershell
 .\.venv\Scripts\python.exe .\.venv\Scripts\vba_extract.py .\excel-template\PdbToExcel.xlsm
 Move-Item .\vbaProject.bin .\src\pnfl_pdbtoexcel\vbaProject.bin -Force
 ```
 
-For the category-worksheet version:
+For categories:
 
 ```powershell
 .\.venv\Scripts\python.exe .\.venv\Scripts\vba_extract.py .\excel-template\PdbToExcelCategories.xlsm
 Move-Item .\vbaProject.bin .\src\pnfl_pdbtoexcel\vbaProject_categories.bin -Force
 ```
-
-See also:
-
-- `docs/vba-workflow.md`

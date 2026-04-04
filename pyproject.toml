@@ -4,9 +4,9 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pnfl-pdbtoexcel"
-version = "0.1.0"
+version = "1.0.0"
 description = "Exports the contents of a WinLogStats database (.pdb) into an Excel worksheet (.xlsm)"
-authors = [{name = "Brian J"}]
+authors = [{ name = "Brian J" }]
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = ["xlsxwriter", "fbpro98-gameplan", "pnfl-playpool"]
@@ -15,10 +15,7 @@ dependencies = ["xlsxwriter", "fbpro98-gameplan", "pnfl-playpool"]
 pdbtoexcel = "pnfl_pdbtoexcel:main"
 
 [project.optional-dependencies]
-dev = [
-    "pytest",
-    "ruff"
-]
+dev = ["pytest", "ruff"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
