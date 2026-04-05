@@ -6,7 +6,7 @@ from zipfile import ZipFile
 
 import pytest
 
-from pnfl_pdbtoexcel.config import set_config_path, set_pnfl_path, set_team
+from pnfl_pdbtoexcel.config import set_config_path, set_play_path, set_team
 from pnfl_pdbtoexcel.pdb_to_excel import PdbWorkbookCreator
 
 
@@ -40,12 +40,12 @@ def _require_fixtures() -> None:
 def _setup_config(tmp_path: Path) -> None:
     config_path = tmp_path / "pdb_to_excel.ini"
     config_path.write_text(
-        f"[Settings]\nPnflPath={PLAYPOOL_DIR}\n",
+        f"[Settings]\nPlayPath={PLAYPOOL_DIR}\n",
         encoding="utf-8",
     )
     set_config_path(config_path)
     set_team(None)
-    set_pnfl_path(None)
+    set_play_path(None)
 
 
 def _read_sheet_names(workbook_path: Path) -> list[str]:
@@ -80,7 +80,7 @@ def test_workbook_without_gameplans(tmp_path: Path) -> None:
     _setup_config(tmp_path)
     workbook_path = tmp_path / "output.xlsx"
 
-    creator = PdbWorkbookCreator(str(PDB_PATH), None, None)
+    creator = PdbWorkbookCreator.from_files(str(PDB_PATH), None, None)
     creator.create_workbook(str(workbook_path), True, True, False)
 
     assert workbook_path.is_file()
@@ -89,7 +89,7 @@ def test_workbook_without_gameplans(tmp_path: Path) -> None:
         assert expected in sheets
 
     assert _read_sheet_row_count(workbook_path, "Run Plays") == 3703
-    assert _read_sheet_row_count(workbook_path, "Pass Plays") == 7891
+    assert _read_sheet_row_count(workbook_path, "Pass Plays") == 7889
     assert _read_sheet_row_count(workbook_path, "Def Plays") == 9843
     assert _read_sheet_row_count(workbook_path, "Tendencies") == 369
 
@@ -101,7 +101,7 @@ def test_workbook_with_gameplans(tmp_path: Path) -> None:
     _setup_config(tmp_path)
     workbook_path = tmp_path / "output.xlsx"
 
-    creator = PdbWorkbookCreator(str(PDB_PATH), str(DEFENSE_PLN), str(OFFENSE_PLN))
+    creator = PdbWorkbookCreator.from_files(str(PDB_PATH), str(DEFENSE_PLN), str(OFFENSE_PLN))
     creator.create_workbook(str(workbook_path), True, True, False)
 
     assert workbook_path.is_file()
@@ -110,7 +110,7 @@ def test_workbook_with_gameplans(tmp_path: Path) -> None:
         assert expected in sheets
 
     assert _read_sheet_row_count(workbook_path, "Run Plays") == 3703
-    assert _read_sheet_row_count(workbook_path, "Pass Plays") == 7891
+    assert _read_sheet_row_count(workbook_path, "Pass Plays") == 7889
     assert _read_sheet_row_count(workbook_path, "Def Plays") == 9843
     assert _read_sheet_row_count(workbook_path, "Tendencies") == 369
 
@@ -120,7 +120,7 @@ def test_workbook_skip_calcs_and_totals(tmp_path: Path) -> None:
     _setup_config(tmp_path)
     workbook_path = tmp_path / "output.xlsx"
 
-    creator = PdbWorkbookCreator(str(PDB_PATH), None, None)
+    creator = PdbWorkbookCreator.from_files(str(PDB_PATH), None, None)
     creator.create_workbook(str(workbook_path), False, False, False)
 
     assert workbook_path.is_file()

@@ -24,7 +24,7 @@ Optional overrides:
 
 ```bash
 python -m pnfl_pdbtoexcel PDB.pdb output.xlsm --config config/pdb_to_excel.ini
-python -m pnfl_pdbtoexcel PDB.pdb output.xlsm --team Denver --pnfl-path E:\SIERRA\FbPro98\PNFL
+python -m pnfl_pdbtoexcel PDB.pdb output.xlsm --team Denver --play-path E:\SIERRA\FbPro98\PNFL
 ```
 
 Config lookup order:

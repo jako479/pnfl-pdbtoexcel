@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 
 from pnfl_pdbtoexcel.cli import parse_args
-from pnfl_pdbtoexcel.config import get_config, set_config_path, set_pnfl_path, set_team
+from pnfl_pdbtoexcel.config import get_config, set_config_path, set_play_path, set_team
 
 from pathlib import Path
 
@@ -27,7 +27,7 @@ def test_parse_args_accepts_positional_args(tmp_path: Path) -> None:
     assert args.skip_calcs is False
     assert args.skip_totals is False
     assert args.team is None
-    assert args.pnfl_path is None
+    assert args.play_path is None
 
 
 def test_parse_args_accepts_all_options(tmp_path: Path) -> None:
@@ -49,7 +49,7 @@ def test_parse_args_accepts_all_options(tmp_path: Path) -> None:
         "-c",
         "-t",
         "--team", "Denver",
-        "--pnfl-path", r"E:\PNFL",
+        "--play-path", r"E:\PNFL",
     ])
     assert args.plnfile_defense == str(defense)
     assert args.plnfile_offense == str(offense)
@@ -57,7 +57,7 @@ def test_parse_args_accepts_all_options(tmp_path: Path) -> None:
     assert args.skip_calcs is True
     assert args.skip_totals is True
     assert args.team == "Denver"
-    assert args.pnfl_path == r"E:\PNFL"
+    assert args.play_path == r"E:\PNFL"
 
 
 def test_parse_args_rejects_non_pdb_extension() -> None:
@@ -75,27 +75,27 @@ def test_config_team_override(tmp_path: Path) -> None:
     config_path.write_text("[Settings]\nTeam=Vikings\n", encoding="utf-8")
     set_config_path(config_path)
     set_team(None)
-    set_pnfl_path(None)
-    assert get_config()["Settings"]["Team"] == "Vikings"
+    set_play_path(None)
+    assert get_config().Settings.Team == "Vikings"
 
     set_config_path(config_path)
     set_team("Denver")
-    assert get_config()["Settings"]["Team"] == "Denver"
+    assert get_config().Settings.Team == "Denver"
     set_team(None)
 
 
-def test_config_pnfl_path_override(tmp_path: Path) -> None:
+def test_config_play_path_override(tmp_path: Path) -> None:
     config_path = tmp_path / "pdb_to_excel.ini"
-    config_path.write_text("[Settings]\nPnflPath=C:\\from-config\n", encoding="utf-8")
+    config_path.write_text("[Settings]\nPlayPath=C:\\from-config\n", encoding="utf-8")
     set_config_path(config_path)
     set_team(None)
-    set_pnfl_path(None)
-    assert get_config()["Settings"]["PnflPath"] == "C:\\from-config"
+    set_play_path(None)
+    assert get_config().Settings.PlayPath == "C:\\from-config"
 
     set_config_path(config_path)
-    set_pnfl_path(r"D:\from-cli")
-    assert get_config()["Settings"]["PnflPath"] == r"D:\from-cli"
-    set_pnfl_path(None)
+    set_play_path(r"D:\from-cli")
+    assert get_config().Settings.PlayPath == r"D:\from-cli"
+    set_play_path(None)
 
 
 def test_config_falls_back_to_defaults(tmp_path: Path) -> None:
@@ -107,8 +107,8 @@ def test_config_falls_back_to_defaults(tmp_path: Path) -> None:
     config_module.CONFIG_CANDIDATES = [tmp_path / "nonexistent.ini"]
     try:
         c = get_config()
-        assert c["Settings"]["PnflPath"] == r"C:\SIERRA\FbPro98\PNFL"
-        assert c["Settings"]["Team"] == ""
+        assert c.Settings.PlayPath == r"C:\SIERRA\FbPro98\PNFL"
+        assert c.Settings.Team == ""
     finally:
         config_module._config_path = original_path
         config_module._config = None

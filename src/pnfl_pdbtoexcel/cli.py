@@ -5,7 +5,7 @@ import logging
 from collections.abc import Sequence
 from pathlib import Path
 
-from .config import set_config_path, set_pnfl_path, set_team, get_config
+from .config import get_config, set_config_path, set_play_path, set_team
 from .pdb_to_excel import PdbWorkbookCreator
 
 
@@ -13,9 +13,7 @@ def _valid_existing_file(param: str, expected_extensions: tuple[str, ...]) -> st
     filepath = Path(param).expanduser()
     if filepath.suffix.lower() not in expected_extensions:
         extensions = ", ".join(expected_extensions)
-        raise argparse.ArgumentTypeError(
-            f"File must have one of these extensions: {extensions}"
-        )
+        raise argparse.ArgumentTypeError(f"File must have one of these extensions: {extensions}")
     if not filepath.is_file():
         raise argparse.ArgumentTypeError(f"File not found: {filepath}")
     return str(filepath)
@@ -44,12 +42,14 @@ def build_parser() -> argparse.ArgumentParser:
         help="save to this XLSX/XLSM file",
     )
     parser.add_argument(
-        "-d", "--plnfile-defense",
+        "-d",
+        "--plnfile-defense",
         type=lambda v: _valid_existing_file(v, (".pln",)),
         help="defensive game plan file (.PLN)",
     )
     parser.add_argument(
-        "-o", "--plnfile-offense",
+        "-o",
+        "--plnfile-offense",
         type=lambda v: _valid_existing_file(v, (".pln",)),
         help="offensive game plan file (.PLN)",
     )
@@ -59,19 +59,21 @@ def build_parser() -> argparse.ArgumentParser:
         help="use this INI file instead of the default config lookup",
     )
     parser.add_argument(
-        "-c", "--skip-calcs",
+        "-c",
+        "--skip-calcs",
         action="store_true",
         help="prevents the extra calculation columns (overrides config settings)",
     )
     parser.add_argument(
-        "-t", "--skip-totals",
+        "-t",
+        "--skip-totals",
         action="store_true",
         help="prevents totalling stats (overrides config settings)",
     )
     parser.add_argument("--team", help="team name (overrides config Settings.Team)")
     parser.add_argument(
-        "--pnfl-path",
-        help="path to PNFL play tree (overrides config Settings.PnflPath)",
+        "--play-path",
+        help="path to PNFL play files directory (overrides config Settings.PlayPath)",
     )
     return parser
 
@@ -91,11 +93,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.config:
         set_config_path(args.config)
     set_team(args.team)
-    set_pnfl_path(args.pnfl_path)
+    set_play_path(args.play_path)
 
     config = get_config()
-    calculate_totals = config["Settings"]["CalculateTotalStats"] and not args.skip_totals
+    calculate_totals = config.Settings.CalculateTotalStats and not args.skip_totals
 
-    creator = PdbWorkbookCreator(args.pdbfile, args.plnfile_defense, args.plnfile_offense)
+    creator = PdbWorkbookCreator.from_files(args.pdbfile, args.plnfile_defense, args.plnfile_offense)
     creator.create_workbook(args.outputfile, not args.skip_calcs, calculate_totals, False)
     return 0
