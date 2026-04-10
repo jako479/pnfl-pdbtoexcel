@@ -16,22 +16,30 @@ pip install -e ".[dev]"
 
 ## Usage
 
+Distributed via the [`pnfl`](../pnfl) umbrella CLI:
+
 ```bash
-python -m pnfl_pdbtoexcel PDB.pdb output.xlsm -d defense.pln -o offense.pln
+pnfl convert-pdb PDB.pdb output.xlsm -d defense.pln -o offense.pln
+```
+
+Or via module:
+
+```bash
+py -m pnfl_pdbtoexcel PDB.pdb output.xlsm -d defense.pln -o offense.pln
 ```
 
 Optional overrides:
 
 ```bash
-python -m pnfl_pdbtoexcel PDB.pdb output.xlsm --config config/pdb_to_excel.ini
-python -m pnfl_pdbtoexcel PDB.pdb output.xlsm --team Denver --play-path E:\SIERRA\FbPro98\PNFL
+pnfl convert-pdb PDB.pdb output.xlsm --config config/convert-pdb.ini
+pnfl convert-pdb PDB.pdb output.xlsm --play-path E:\SIERRA\FbPro98\PNFL
 ```
 
-Config lookup order:
+Config lookup order (first match wins; `.dev.ini` variants take precedence at each level):
 
-1. `pdb_to_excel.ini` in the current working directory
-2. `src/pnfl_pdbtoexcel/pdb_to_excel.ini`
-3. `config/pdb_to_excel.ini`
+1. `convert-pdb.dev.ini` / `convert-pdb.ini` in the current working directory
+2. `config/convert-pdb.dev.ini` / `config/convert-pdb.ini` at the project root
+3. `src/pnfl_pdbtoexcel/convert-pdb.dev.ini` / `src/pnfl_pdbtoexcel/convert-pdb.ini`
 
 ## VBA Macros
 
@@ -50,23 +58,5 @@ pytest
 
 ## Building a Release
 
-Build the release zip:
-
-```bash
-py -3.13 scripts/build_release.py
-```
-
-This creates `dist/PdbToExcel-vX.Y.Z.zip`.
-
-Smoke test in a clean venv:
-
-1. Extract `dist/PdbToExcel-vX.Y.Z.zip` to a temp folder
-2. Open a command prompt in the extracted folder
-
-```bash
-py -3.13 -m venv .venv
-.venv\Scripts\activate
-install.bat
-python -m pnfl_pdbtoexcel "C:\path\to\test.pdb" "C:\path\to\test.xlsm"
-deactivate
-```
+This project is distributed as part of the [`pnfl`](../pnfl) umbrella CLI.
+See `pnfl/scripts/build_release.py` for release packaging.

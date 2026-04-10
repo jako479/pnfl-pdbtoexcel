@@ -6,7 +6,7 @@ from zipfile import ZipFile
 
 import pytest
 
-from pnfl_pdbtoexcel.config import set_config_path, set_play_path, set_team
+from pnfl_pdbtoexcel.config import AppConfig, load_config
 from pnfl_pdbtoexcel.pdb_to_excel import PdbWorkbookCreator
 
 
@@ -37,15 +37,13 @@ def _require_fixtures() -> None:
         pytest.skip(f"Missing playpool fixture dir: {PLAYPOOL_DIR}")
 
 
-def _setup_config(tmp_path: Path) -> None:
-    config_path = tmp_path / "pdb_to_excel.ini"
+def _make_config(tmp_path: Path) -> AppConfig:
+    config_path = tmp_path / "convert-pdb.ini"
     config_path.write_text(
         f"[Settings]\nPlayPath={PLAYPOOL_DIR}\n",
         encoding="utf-8",
     )
-    set_config_path(config_path)
-    set_team(None)
-    set_play_path(None)
+    return load_config(config_path=config_path)
 
 
 def _read_sheet_names(workbook_path: Path) -> list[str]:
@@ -77,10 +75,10 @@ def _read_sheet_row_count(workbook_path: Path, sheet_name: str) -> int:
 
 def test_workbook_without_gameplans(tmp_path: Path) -> None:
     _require_fixtures()
-    _setup_config(tmp_path)
+    config = _make_config(tmp_path)
     workbook_path = tmp_path / "output.xlsx"
 
-    creator = PdbWorkbookCreator.from_files(str(PDB_PATH), None, None)
+    creator = PdbWorkbookCreator.from_files(config, str(PDB_PATH), None, None)
     creator.create_workbook(str(workbook_path), True, True, False)
 
     assert workbook_path.is_file()
@@ -98,10 +96,10 @@ def test_workbook_with_gameplans(tmp_path: Path) -> None:
     _require_fixtures()
     if not OFFENSE_PLN.is_file() or not DEFENSE_PLN.is_file():
         pytest.skip("Missing gameplan fixtures")
-    _setup_config(tmp_path)
+    config = _make_config(tmp_path)
     workbook_path = tmp_path / "output.xlsx"
 
-    creator = PdbWorkbookCreator.from_files(str(PDB_PATH), str(DEFENSE_PLN), str(OFFENSE_PLN))
+    creator = PdbWorkbookCreator.from_files(config, str(PDB_PATH), str(DEFENSE_PLN), str(OFFENSE_PLN))
     creator.create_workbook(str(workbook_path), True, True, False)
 
     assert workbook_path.is_file()
@@ -117,10 +115,10 @@ def test_workbook_with_gameplans(tmp_path: Path) -> None:
 
 def test_workbook_skip_calcs_and_totals(tmp_path: Path) -> None:
     _require_fixtures()
-    _setup_config(tmp_path)
+    config = _make_config(tmp_path)
     workbook_path = tmp_path / "output.xlsx"
 
-    creator = PdbWorkbookCreator.from_files(str(PDB_PATH), None, None)
+    creator = PdbWorkbookCreator.from_files(config, str(PDB_PATH), None, None)
     creator.create_workbook(str(workbook_path), False, False, False)
 
     assert workbook_path.is_file()

@@ -5,7 +5,7 @@ import logging
 from collections.abc import Sequence
 from pathlib import Path
 
-from .config import get_config, set_config_path, set_play_path, set_team
+from .config import load_config
 from .pdb_to_excel import PdbWorkbookCreator
 
 
@@ -48,10 +48,22 @@ def build_parser() -> argparse.ArgumentParser:
         help="defensive game plan file (.PLN)",
     )
     parser.add_argument(
+        "-d2",
+        "--plnfile-defense-2",
+        type=lambda v: _valid_existing_file(v, (".pln",)),
+        help="second defensive game plan file (.PLN)",
+    )
+    parser.add_argument(
         "-o",
         "--plnfile-offense",
         type=lambda v: _valid_existing_file(v, (".pln",)),
         help="offensive game plan file (.PLN)",
+    )
+    parser.add_argument(
+        "-o2",
+        "--plnfile-offense-2",
+        type=lambda v: _valid_existing_file(v, (".pln",)),
+        help="second offensive game plan file (.PLN)",
     )
     parser.add_argument(
         "--config",
@@ -70,7 +82,6 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="prevents totalling stats (overrides config settings)",
     )
-    parser.add_argument("--team", help="team name (overrides config Settings.Team)")
     parser.add_argument(
         "--play-path",
         help="path to PNFL play files directory (overrides config Settings.PlayPath)",
@@ -90,14 +101,19 @@ def main(argv: Sequence[str] | None = None) -> int:
         format="%(levelname)s: %(message)s",
     )
 
-    if args.config:
-        set_config_path(args.config)
-    set_team(args.team)
-    set_play_path(args.play_path)
-
-    config = get_config()
+    config = load_config(
+        config_path=args.config,
+        play_path=args.play_path,
+    )
     calculate_totals = config.Settings.CalculateTotalStats and not args.skip_totals
 
-    creator = PdbWorkbookCreator.from_files(args.pdbfile, args.plnfile_defense, args.plnfile_offense)
+    creator = PdbWorkbookCreator.from_files(
+        config,
+        args.pdbfile,
+        args.plnfile_defense,
+        args.plnfile_offense,
+        args.plnfile_defense_2,
+        args.plnfile_offense_2,
+    )
     creator.create_workbook(args.outputfile, not args.skip_calcs, calculate_totals, False)
     return 0

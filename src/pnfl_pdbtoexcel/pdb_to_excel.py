@@ -1,19 +1,20 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Iterator
 from os import PathLike
 
 from fbpro98_gameplan import GamePlan, read_gameplan
-from pnfl_playpool import DefensivePlayRecord, PlayPool, PlayRecord, SpecialTeamsPlayRecord
+from pnfl_playpool import DefensivePlayRecord, OffensivePlayRecord, PlayPool, PlayRecord, SpecialTeamsPlayRecord
 
-from .config import AppConfig, get_config
+from .config import AppConfig
 from .pdb import PDB, PLAY_DATA
 from .workbook import ExcelPdbWorkbook
-
 
 logger = logging.getLogger(__name__)
 
 StrPath = str | PathLike[str]
+NormalPlayRecord = OffensivePlayRecord | DefensivePlayRecord
 
 DELETED_PLAYS = [
     "ATF0ELOB",
@@ -57,19 +58,26 @@ class PdbWorkbookCreator:
         pdb: PDB,
         pln_defense: GamePlan | None = None,
         pln_offense: GamePlan | None = None,
+        pln_defense_2: GamePlan | None = None,
+        pln_offense_2: GamePlan | None = None,
     ) -> None:
         self.config = config
         self.play_pool = play_pool
         self.pdb = pdb
         self.pln_defense = pln_defense
         self.pln_offense = pln_offense
+        self.pln_defense_2 = pln_defense_2
+        self.pln_offense_2 = pln_offense_2
 
     @classmethod
     def from_files(
         cls,
+        config: AppConfig,
         pdb_filename: StrPath,
         pln_def_filename: StrPath | None = None,
         pln_off_filename: StrPath | None = None,
+        pln_def_filename_2: StrPath | None = None,
+        pln_off_filename_2: StrPath | None = None,
     ) -> PdbWorkbookCreator:
         """Convenience factory — builds all dependencies from file paths.
 
@@ -77,13 +85,14 @@ class PdbWorkbookCreator:
         the building so the constructor doesn't have to. Production code
         calls this; test code calls __init__ directly with fakes.
         """
-        config = get_config()
         play_pool = PlayPool.from_directory(config.Settings.PlayPath)
         pdb = PDB(pdb_filename)
         pdb.convert_invalid_play_data(play_pool)
         pln_defense = read_gameplan(pln_def_filename) if pln_def_filename else None
         pln_offense = read_gameplan(pln_off_filename) if pln_off_filename else None
-        return cls(config, play_pool, pdb, pln_defense, pln_offense)
+        pln_defense_2 = read_gameplan(pln_def_filename_2) if pln_def_filename_2 else None
+        pln_offense_2 = read_gameplan(pln_off_filename_2) if pln_off_filename_2 else None
+        return cls(config, play_pool, pdb, pln_defense, pln_offense, pln_defense_2, pln_offense_2)
 
     def create_workbook(
         self,
@@ -96,15 +105,24 @@ class PdbWorkbookCreator:
         if not perform_calculations:
             logger.info("Skipping extra calculations")
 
-        with ExcelPdbWorkbook(self.config, filename, perform_calculations) as workbook:
+        offense_slot_count = (1 if self.pln_offense else 0) + (1 if self.pln_offense_2 else 0)
+        defense_slot_count = (1 if self.pln_defense else 0) + (1 if self.pln_defense_2 else 0)
+
+        with ExcelPdbWorkbook(
+            self.config,
+            filename,
+            perform_calculations,
+            offense_slot_count,
+            defense_slot_count,
+        ) as workbook:
             combined_plays: dict[bytes, PLAY_DATA] | None = {} if calculate_totals else None
             missing_play_files_logged: set[str] = set()
 
-            resolved_plays: list[tuple[PLAY_DATA, str, str, PlayRecord]] = []
+            resolved_plays: list[tuple[PLAY_DATA, str, str, NormalPlayRecord]] = []
             for play_in_pdb, play_name, team_name, play_record in self._iter_category_source_plays(missing_play_files_logged):
                 resolved_plays.append((play_in_pdb, play_name, team_name, play_record))
-                play_slot = self._get_play_slot(play_in_pdb, play_name)
-                workbook.add_play(play_in_pdb, play_slot, play_record)
+                play_slots = self._get_play_slots(play_in_pdb, play_name)
+                workbook.add_play(play_in_pdb, play_slots, play_record)
                 if combined_plays is not None:
                     self._add_play_stats_to_total_play(combined_plays, play_in_pdb)
 
@@ -118,7 +136,6 @@ class PdbWorkbookCreator:
                 team_categories_data, categories_data = self._collect_category_stats(
                     resolved_plays,
                     calculate_totals=calculate_totals,
-                    group_categories=self.config.Settings.CalculateGroupedCategoryStats,
                 )
 
                 for team_category, category_data in team_categories_data.items():
@@ -127,7 +144,8 @@ class PdbWorkbookCreator:
                 if calculate_totals:
                     for category_name, category_data in categories_data.items():
                         workbook.add_category(
-                            ("`Total Stats", category_name), category_data,
+                            ("`Total Stats", category_name),
+                            category_data,
                         )
 
         logger.info("Conversion complete")
@@ -140,11 +158,15 @@ class PdbWorkbookCreator:
         )
         for play_type in play_types:
             plays_list = sorted(
-                self.pdb.plays[play_type].values(), key=lambda x: x.team_name,
+                self.pdb.plays[play_type].values(),
+                key=lambda x: x.team_name,
             )
             yield from plays_list
 
-    def _iter_category_source_plays(self, missing_play_files_logged: set[str] | None = None):
+    def _iter_category_source_plays(
+        self,
+        missing_play_files_logged: set[str] | None = None,
+    ) -> Iterator[tuple[PLAY_DATA, str, str, NormalPlayRecord]]:
         for play_in_pdb in self._iter_tracked_plays():
             play_name = play_in_pdb.play_name.decode("ASCII")
             team_name = play_in_pdb.team_name.decode("ASCII")
@@ -154,10 +176,14 @@ class PdbWorkbookCreator:
                 continue
             if not self._should_export_play(play_in_pdb, play_name, play_record):
                 continue
+            # Special teams filtered by _should_export_play; only normal plays remain.
+            assert isinstance(play_record, (OffensivePlayRecord, DefensivePlayRecord))
             yield play_in_pdb, play_name, team_name, play_record
 
     def _log_unknown_play(
-        self, play_name: str, missing_play_files_logged: set[str] | None = None,
+        self,
+        play_name: str,
+        missing_play_files_logged: set[str] | None = None,
     ) -> None:
         if missing_play_files_logged is not None and play_name not in missing_play_files_logged:
             if play_name in DELETED_PLAYS:
@@ -167,7 +193,10 @@ class PdbWorkbookCreator:
             missing_play_files_logged.add(play_name)
 
     def _should_export_play(
-        self, play_in_pdb: PLAY_DATA, play_name: str, play_record: PlayRecord,
+        self,
+        play_in_pdb: PLAY_DATA,
+        play_name: str,
+        play_record: PlayRecord,
     ) -> bool:
         if play_name in DELETED_PLAYS:
             return False
@@ -183,47 +212,55 @@ class PdbWorkbookCreator:
             return False
         return True
 
-    def _get_play_slot(self, play_in_pdb: PLAY_DATA, play_name: str) -> str:
-        play_in_plan = None
-        if self.pln_offense and play_in_pdb.play_type in (
-            PLAY_DATA.PLAY_TYPE.RUN, PLAY_DATA.PLAY_TYPE.PASS,
-        ):
-            play_in_plan = self.pln_offense.normal_plays.get(play_name)
-        elif self.pln_defense and play_in_pdb.play_type == PLAY_DATA.PLAY_TYPE.DEFENSE:
-            play_in_plan = self.pln_defense.normal_plays.get(play_name)
-        if play_in_plan:
-            row = play_in_plan.slot // 4 + 1
-            col = play_in_plan.slot % 4 + 1
-            return f"{row}-{col}"
-        return ""
+    def _get_play_slots(self, play_in_pdb: PLAY_DATA, play_name: str) -> tuple[str, str]:
+        if play_in_pdb.play_type in (PLAY_DATA.PLAY_TYPE.RUN, PLAY_DATA.PLAY_TYPE.PASS):
+            plan_1 = self.pln_offense
+            plan_2 = self.pln_offense_2
+        elif play_in_pdb.play_type == PLAY_DATA.PLAY_TYPE.DEFENSE:
+            plan_1 = self.pln_defense
+            plan_2 = self.pln_defense_2
+        else:
+            return ("", "")
+        return (
+            self._format_slot(plan_1.normal_plays.get(play_name)) if plan_1 else "",
+            self._format_slot(plan_2.normal_plays.get(play_name)) if plan_2 else "",
+        )
+
+    @staticmethod
+    def _format_slot(play_in_plan) -> str:
+        if not play_in_plan:
+            return ""
+        row = play_in_plan.slot // 4 + 1
+        col = play_in_plan.slot % 4 + 1
+        return f"{row}-{col}"
 
     def _collect_category_stats(
         self,
-        resolved_plays: list[tuple[PLAY_DATA, str, str, PlayRecord]],
+        resolved_plays: list[tuple[PLAY_DATA, str, str, NormalPlayRecord]],
         calculate_totals: bool,
-        group_categories: bool,
     ):
         categories_data: dict[str, PLAY_DATA] = {}
         team_categories_data: dict[tuple[str, str], PLAY_DATA] = {}
 
         for play_in_pdb, _, team_name, play_record in resolved_plays:
-            self._add_play_stats_to_team_categories(
-                team_categories_data=team_categories_data,
-                play_in_pdb=play_in_pdb,
-                team_name=team_name,
-                category=play_record.pool_category,
-                group_categories=group_categories,
+            self._add_play_stats_to_team_category(
+                team_categories_data,
+                play_in_pdb,
+                (team_name, play_record.pool_category),
             )
             if calculate_totals:
                 self._add_play_stats_to_category(
-                    categories_data, play_in_pdb, play_record.pool_category,
+                    categories_data,
+                    play_in_pdb,
+                    play_record.pool_category,
                 )
 
         return team_categories_data, categories_data
 
     @staticmethod
     def _add_play_stats_to_total_play(
-        combined_plays: dict[bytes, PLAY_DATA], play_in_pdb: PLAY_DATA,
+        combined_plays: dict[bytes, PLAY_DATA],
+        play_in_pdb: PLAY_DATA,
     ) -> None:
         if play_in_pdb.play_name in combined_plays:
             combined_play_data = combined_plays[play_in_pdb.play_name]
@@ -248,41 +285,11 @@ class PdbWorkbookCreator:
                 continue
             if not self._should_export_play(play_in_pdb, play_name, play_record):
                 continue
+            assert isinstance(play_record, (OffensivePlayRecord, DefensivePlayRecord))
             if filter_total_stats and not self._play_meets_criteria(play_in_pdb, play_record):
                 continue
-            play_slot = self._get_play_slot(play_in_pdb, play_name)
-            workbook.add_play(play_in_pdb, play_slot, play_record)
-
-    @staticmethod
-    def _add_play_stats_to_team_categories(
-        team_categories_data: dict[tuple[str, str], PLAY_DATA],
-        play_in_pdb: PLAY_DATA,
-        team_name: str,
-        category: str,
-        group_categories: bool = False,
-    ) -> None:
-        team_category = (team_name, category)
-        PdbWorkbookCreator._add_play_stats_to_team_category(
-            team_categories_data, play_in_pdb, team_category,
-        )
-
-        if group_categories:
-            if play_in_pdb.play_type == PLAY_DATA.PLAY_TYPE.RUN:
-                PdbWorkbookCreator._add_play_stats_to_team_category(
-                    team_categories_data, play_in_pdb, (team_name, "TOTAL RUNS"),
-                )
-            elif play_in_pdb.play_type == PLAY_DATA.PLAY_TYPE.PASS:
-                if category in ("PSL", "PSM", "PSR"):
-                    PdbWorkbookCreator._add_play_stats_to_team_category(
-                        team_categories_data, play_in_pdb, (team_name, "TOTAL PS"),
-                    )
-                if category in ("PML", "PMM", "PMR"):
-                    PdbWorkbookCreator._add_play_stats_to_team_category(
-                        team_categories_data, play_in_pdb, (team_name, "TOTAL PM"),
-                    )
-                PdbWorkbookCreator._add_play_stats_to_team_category(
-                    team_categories_data, play_in_pdb, (team_name, "TOTAL PASSES"),
-                )
+            play_slots = self._get_play_slots(play_in_pdb, play_name)
+            workbook.add_play(play_in_pdb, play_slots, play_record)
 
     @staticmethod
     def _add_play_stats_to_team_category(
@@ -313,7 +320,7 @@ class PdbWorkbookCreator:
         categories_data[category] = category_data
 
     @staticmethod
-    def _play_meets_criteria(play_in_pdb: PLAY_DATA, play_record: PlayRecord) -> bool:
+    def _play_meets_criteria(play_in_pdb: PLAY_DATA, play_record: NormalPlayRecord) -> bool:
         if play_record.pool_category not in TOTAL_STATS_FILTER:
             return True
 

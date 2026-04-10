@@ -6,130 +6,79 @@ import socket
 from dataclasses import dataclass
 from pathlib import Path
 
-SCRIPT_DIR = Path(__file__).resolve().parent
-PROJECT_DIR = SCRIPT_DIR.parent.parent
+PACKAGE_DIR = Path(__file__).resolve().parent
+PROJECT_DIR = PACKAGE_DIR.parent.parent
 
 DEFAULT_PLAY_PATH = r"C:\SIERRA\FbPro98\PNFL"
 
 CONFIG_CANDIDATES = [
-    Path.cwd() / "pdb_to_excel.ini",
-    SCRIPT_DIR / "pdb_to_excel.ini",
-    PROJECT_DIR / "config" / "pdb_to_excel.ini",
+    Path.cwd() / "convert-pdb.dev.ini",
+    Path.cwd() / "convert-pdb.ini",
+    PROJECT_DIR / "config" / "convert-pdb.dev.ini",
+    PROJECT_DIR / "config" / "convert-pdb.ini",
+    PACKAGE_DIR / "convert-pdb.dev.ini",
+    PACKAGE_DIR / "convert-pdb.ini",
 ]
 
-_config_path: Path | None = None
-_config: AppConfig | None = None
-_team_override: str | None = None
-_play_path_override: str | None = None
 
-
-@dataclass
+@dataclass(frozen=True)
 class Settings:
-    Team: str = ""
     PlayPath: str = DEFAULT_PLAY_PATH
     CalculateTotalStats: bool = True
+    CalculatePercentages: bool = True
     CalculateCategoryStats: bool = False
-    CalculateGroupedCategoryStats: bool = False
 
 
-@dataclass
-class AdditionalColumns:
-    RunFumblePercentage: bool = True
-    RunTouchdownPercentage: bool = True
-    PassInterceptionPercentage: bool = True
-    PassSackPercentage: bool = True
-    PassTouchdownPercentage: bool = True
-    DefenseTurnoverPercentage: bool = True
-    DefenseSackPercentage: bool = True
-    DefenseOffTdPercentage: bool = True
+@dataclass(frozen=True)
+class CategoryOrder:
+    RunCategories: list[str]
+    PassCategories: list[str]
+    DefenseCategories: list[str]
 
 
-@dataclass
+@dataclass(frozen=True)
 class AppConfig:
     Settings: Settings
-    AdditionalColumns: AdditionalColumns
+    CategoryOrder: CategoryOrder
 
 
 def get_runtime_path(filename: str) -> Path:
-    return SCRIPT_DIR / filename
+    return PACKAGE_DIR / "resources" / filename
 
 
-def get_config_path() -> Path:
-    global _config_path
-    if _config_path is None:
-        _config_path = next(
-            (c for c in CONFIG_CANDIDATES if c.is_file()),
-            CONFIG_CANDIDATES[0],
-        )
-    return _config_path
+def find_config_path() -> Path:
+    return next(
+        (c for c in CONFIG_CANDIDATES if c.is_file()),
+        CONFIG_CANDIDATES[0],
+    )
 
 
-def set_config_path(config_path: str | Path) -> None:
-    global _config_path, _config
-    _config_path = Path(config_path).expanduser().resolve()
-    _config = None
+def _parse_category_list(cp: configparser.ConfigParser, key: str) -> list[str]:
+    raw = cp.get("CategoryOrder", key, fallback="")
+    return [line.strip() for line in raw.splitlines() if line.strip()]
 
 
-def set_team(team: str | None) -> None:
-    global _team_override, _config
-    _team_override = team
-    _config = None
-
-
-def set_play_path(play_path: str | None) -> None:
-    global _play_path_override, _config
-    _play_path_override = play_path
-    _config = None
-
-
-def get_config() -> AppConfig:
-    global _config
-    if _config is not None:
-        return _config
+def load_config(
+    config_path: Path | None = None,
+    play_path: str | None = None,
+) -> AppConfig:
+    path = config_path or find_config_path()
+    cp = configparser.ConfigParser()
+    cp.read(path, encoding="utf-8")
 
     md5 = hashlib.md5(socket.gethostname().encode())
-    cp = configparser.ConfigParser()
-    cp.read(get_config_path(), encoding="utf-8")
-
     is_dev_machine = md5.hexdigest() == "5c4b925bf527c4f8581815a35a10d658"
 
-    settings = Settings(
-        Team=cp.get("Settings", "Team", fallback=""),
-        PlayPath=cp.get("Settings", "PlayPath", fallback=DEFAULT_PLAY_PATH),
-        CalculateTotalStats=cp.getboolean("Settings", "CalculateTotalStats", fallback=True),
-        CalculateCategoryStats=is_dev_machine,
-        CalculateGroupedCategoryStats=is_dev_machine,
-    )
-
-    additional_columns = AdditionalColumns(
-        RunFumblePercentage=cp.getboolean(
-            "AdditionalColumns", "RunFumblePercentage", fallback=True
+    return AppConfig(
+        Settings=Settings(
+            PlayPath=play_path or cp.get("Settings", "PlayPath", fallback=DEFAULT_PLAY_PATH),
+            CalculateTotalStats=cp.getboolean("Settings", "CalculateTotalStats", fallback=True),
+            CalculatePercentages=cp.getboolean("Settings", "CalculatePercentages", fallback=True),
+            CalculateCategoryStats=is_dev_machine,
         ),
-        RunTouchdownPercentage=cp.getboolean(
-            "AdditionalColumns", "RunTouchdownPercentage", fallback=True
-        ),
-        PassInterceptionPercentage=cp.getboolean(
-            "AdditionalColumns", "PassInterceptionPercentage", fallback=True
-        ),
-        PassSackPercentage=cp.getboolean("AdditionalColumns", "PassSackPercentage", fallback=True),
-        PassTouchdownPercentage=cp.getboolean(
-            "AdditionalColumns", "PassTouchdownPercentage", fallback=True
-        ),
-        DefenseTurnoverPercentage=cp.getboolean(
-            "AdditionalColumns", "DefenseTurnoverPercentage", fallback=True
-        ),
-        DefenseSackPercentage=cp.getboolean(
-            "AdditionalColumns", "DefenseSackPercentage", fallback=True
-        ),
-        DefenseOffTdPercentage=cp.getboolean(
-            "AdditionalColumns", "DefenseOffTdPercentage", fallback=True
+        CategoryOrder=CategoryOrder(
+            RunCategories=_parse_category_list(cp, "RunCategories"),
+            PassCategories=_parse_category_list(cp, "PassCategories"),
+            DefenseCategories=_parse_category_list(cp, "DefenseCategories"),
         ),
     )
-
-    if _team_override is not None:
-        settings.Team = _team_override
-    if _play_path_override is not None:
-        settings.PlayPath = _play_path_override
-
-    _config = AppConfig(Settings=settings, AdditionalColumns=additional_columns)
-    return _config
