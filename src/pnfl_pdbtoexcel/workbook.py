@@ -8,8 +8,8 @@ import xlsxwriter
 from pnfl_playpool import DefensivePlayRecord, OffensivePlayRecord
 from xlsxwriter.worksheet import Worksheet
 
-from .config import AppConfig, get_runtime_path
-from .pdb import PLAY_DATA
+from pnfl_pdbtoexcel.config import AppConfig, get_runtime_path
+from pnfl_pdbtoexcel.pdb import PLAY_DATA
 
 
 @dataclass
@@ -147,7 +147,9 @@ class ExcelPdbWorkbook:
             options_normal=self.workbook.add_format({"font_size": 10}),
             options_header=self.workbook.add_format({"bg_color": "#FABF8F", "bold": True, "font_size": 10}),
             options_header2=self.workbook.add_format({"bg_color": "#FDE9D9", "bold": True, "font_size": 10}),
-            options_option=self.workbook.add_format({"bg_color": "#FFFF00", "bold": True, "font_size": 10, "border": 2, "border_color": "black"}),
+            options_option=self.workbook.add_format(
+                {"bg_color": "#FFFF00", "bold": True, "font_size": 10, "border": 2, "border_color": "black"}
+            ),
             options_note=self.workbook.add_format({"bg_color": "#FDE9D9", "bold": True, "font_size": 8}),
         )
 
@@ -450,7 +452,9 @@ class ExcelPdbWorkbook:
         if isinstance(play_record, OffensivePlayRecord) and play_record.screen:
             play_type = "Screen"
 
-        avg_per_completion = int(play_data.total_yards) / int(play_data.completions) if play_data.completions > 0 else 0.0
+        avg_per_completion = (
+            int(play_data.total_yards) / int(play_data.completions) if play_data.completions > 0 else 0.0
+        )
         avg_per_attempt = int(play_data.total_yards) / int(play_data.play_count) if play_data.play_count > 0 else 0.0
 
         slot_1, slot_2 = play_slots
@@ -486,8 +490,16 @@ class ExcelPdbWorkbook:
         if isinstance(play_record, DefensivePlayRecord) and play_record.personnel_grouping is not None:
             play_type = play_record.personnel_grouping.value
 
-        rush_avg = int(play_data.rush_yards_allowed) / int(play_data.run_plays_against) if play_data.run_plays_against > 0 else 0.0
-        pass_avg = int(play_data.pass_yards_allowed) / int(play_data.pass_plays_against) if play_data.pass_plays_against > 0 else 0.0
+        rush_avg = (
+            int(play_data.rush_yards_allowed) / int(play_data.run_plays_against)
+            if play_data.run_plays_against > 0
+            else 0.0
+        )
+        pass_avg = (
+            int(play_data.pass_yards_allowed) / int(play_data.pass_plays_against)
+            if play_data.pass_plays_against > 0
+            else 0.0
+        )
 
         slot_1, slot_2 = play_slots
         row_data = [
@@ -511,7 +523,9 @@ class ExcelPdbWorkbook:
         ]
 
         if self.show_percentages:
-            row_data.insert(14, round((int(play_data.fumbles) + int(play_data.interceptions)) / int(play_data.play_count), 3))
+            row_data.insert(
+                14, round((int(play_data.fumbles) + int(play_data.interceptions)) / int(play_data.play_count), 3)
+            )
             row_data.insert(16, round(int(play_data.sacks) / int(play_data.play_count), 3))
             row_data.insert(19, round(int(play_data.touchdowns_offense) / int(play_data.play_count), 3))
 
@@ -540,8 +554,12 @@ class ExcelPdbWorkbook:
         self.run_categories.rows += 1
 
     def _add_pass_category(self, team_category, category_data):
-        avg_per_completion = int(category_data.total_yards) / int(category_data.completions) if category_data.completions > 0 else 0.0
-        avg_per_attempt = int(category_data.total_yards) / int(category_data.play_count) if category_data.play_count > 0 else 0.0
+        avg_per_completion = (
+            int(category_data.total_yards) / int(category_data.completions) if category_data.completions > 0 else 0.0
+        )
+        avg_per_attempt = (
+            int(category_data.total_yards) / int(category_data.play_count) if category_data.play_count > 0 else 0.0
+        )
 
         row_data = [
             team_category[0],
@@ -568,8 +586,16 @@ class ExcelPdbWorkbook:
         self.pass_categories.rows += 1
 
     def _add_defense_category(self, team_category, category_data):
-        rush_avg = int(category_data.rush_yards_allowed) / int(category_data.run_plays_against) if category_data.run_plays_against > 0 else 0.0
-        pass_avg = int(category_data.pass_yards_allowed) / int(category_data.pass_plays_against) if category_data.pass_plays_against > 0 else 0.0
+        rush_avg = (
+            int(category_data.rush_yards_allowed) / int(category_data.run_plays_against)
+            if category_data.run_plays_against > 0
+            else 0.0
+        )
+        pass_avg = (
+            int(category_data.pass_yards_allowed) / int(category_data.pass_plays_against)
+            if category_data.pass_plays_against > 0
+            else 0.0
+        )
 
         row_data = [
             team_category[0],
@@ -588,7 +614,12 @@ class ExcelPdbWorkbook:
         ]
 
         if self.show_percentages:
-            row_data.insert(10, round((int(category_data.fumbles) + int(category_data.interceptions)) / int(category_data.play_count), 3))
+            row_data.insert(
+                10,
+                round(
+                    (int(category_data.fumbles) + int(category_data.interceptions)) / int(category_data.play_count), 3
+                ),
+            )
             row_data.insert(12, round(int(category_data.sacks) / int(category_data.play_count), 3))
             row_data.insert(15, round(int(category_data.touchdowns_offense) / int(category_data.play_count), 3))
 

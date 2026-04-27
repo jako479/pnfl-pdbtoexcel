@@ -5,8 +5,8 @@ import logging
 from collections.abc import Sequence
 from pathlib import Path
 
-from .config import load_config
-from .pdb_to_excel import PdbWorkbookCreator
+from pnfl_pdbtoexcel.config import load_config
+from pnfl_pdbtoexcel.pdb_to_excel import PdbWorkbookCreator
 
 
 def _valid_existing_file(param: str, expected_extensions: tuple[str, ...]) -> str:
@@ -28,7 +28,7 @@ def _valid_output_file(param: str) -> str:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog="pnfl-pdbtoexcel",
+        prog="pnfl convert-pdb",
         description="Create an Excel workbook from a WinLogStats PDB and optional FBPro 98 game plans.",
     )
     parser.add_argument(

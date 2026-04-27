@@ -9,7 +9,6 @@ import pytest
 from pnfl_pdbtoexcel.config import AppConfig, load_config
 from pnfl_pdbtoexcel.pdb_to_excel import PdbWorkbookCreator
 
-
 TESTS_DIR = Path(__file__).resolve().parents[1]
 PDB_PATH = TESTS_DIR / "data" / "2045-2047.pdb"
 GAMEPLAN_DATA_DIR = Path(__file__).resolve().parents[3] / "fbpro98-gameplan" / "tests" / "data"
@@ -49,20 +48,14 @@ def _make_config(tmp_path: Path) -> AppConfig:
 def _read_sheet_names(workbook_path: Path) -> list[str]:
     with ZipFile(workbook_path) as archive:
         tree = ET.fromstring(archive.read("xl/workbook.xml"))
-    return [
-        sheet.attrib["name"]
-        for sheet in tree.findall(f".//{{{MAIN_NS}}}sheet")
-    ]
+    return [sheet.attrib["name"] for sheet in tree.findall(f".//{{{MAIN_NS}}}sheet")]
 
 
 def _read_sheet_row_count(workbook_path: Path, sheet_name: str) -> int:
     with ZipFile(workbook_path) as archive:
         tree = ET.fromstring(archive.read("xl/workbook.xml"))
         rels_tree = ET.fromstring(archive.read("xl/_rels/workbook.xml.rels"))
-        rel_targets = {
-            rel.attrib["Id"]: rel.attrib["Target"]
-            for rel in rels_tree.findall(f"{{{PKG_REL_NS}}}Relationship")
-        }
+        rel_targets = {rel.attrib["Id"]: rel.attrib["Target"] for rel in rels_tree.findall(f"{{{PKG_REL_NS}}}Relationship")}
         for sheet in tree.findall(f".//{{{MAIN_NS}}}sheet"):
             if sheet.attrib["name"] != sheet_name:
                 continue
@@ -126,7 +119,7 @@ def test_workbook_skip_calcs_and_totals(tmp_path: Path) -> None:
     for expected in EXPECTED_SHEETS_BASE:
         assert expected in sheets
 
-    # Without totals, fewer rows (no `Total Stats team entries)
+    # Without totals, fewer rows (no Total Stats team entries)
     run_rows = _read_sheet_row_count(workbook_path, "Run Plays")
     pass_rows = _read_sheet_row_count(workbook_path, "Pass Plays")
     def_rows = _read_sheet_row_count(workbook_path, "Def Plays")

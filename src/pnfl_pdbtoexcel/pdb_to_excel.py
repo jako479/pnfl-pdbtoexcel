@@ -7,9 +7,9 @@ from os import PathLike
 from fbpro98_gameplan import GamePlan, read_gameplan
 from pnfl_playpool import DefensivePlayRecord, OffensivePlayRecord, PlayPool, PlayRecord, SpecialTeamsPlayRecord
 
-from .config import AppConfig
-from .pdb import PDB, PLAY_DATA
-from .workbook import ExcelPdbWorkbook
+from pnfl_pdbtoexcel.config import AppConfig
+from pnfl_pdbtoexcel.pdb import PDB, PLAY_DATA
+from pnfl_pdbtoexcel.workbook import ExcelPdbWorkbook
 
 logger = logging.getLogger(__name__)
 
@@ -119,7 +119,9 @@ class PdbWorkbookCreator:
             missing_play_files_logged: set[str] = set()
 
             resolved_plays: list[tuple[PLAY_DATA, str, str, NormalPlayRecord]] = []
-            for play_in_pdb, play_name, team_name, play_record in self._iter_category_source_plays(missing_play_files_logged):
+            for play_in_pdb, play_name, team_name, play_record in self._iter_category_source_plays(
+                missing_play_files_logged
+            ):
                 resolved_plays.append((play_in_pdb, play_name, team_name, play_record))
                 play_slots = self._get_play_slots(play_in_pdb, play_name)
                 workbook.add_play(play_in_pdb, play_slots, play_record)
@@ -144,7 +146,7 @@ class PdbWorkbookCreator:
                 if calculate_totals:
                     for category_name, category_data in categories_data.items():
                         workbook.add_category(
-                            ("`Total Stats", category_name),
+                            ("Total Stats", category_name),
                             category_data,
                         )
 
@@ -267,7 +269,7 @@ class PdbWorkbookCreator:
         else:
             combined_play_data = PLAY_DATA()
             combined_play_data.play_type = play_in_pdb.play_type
-            combined_play_data.team_name = b"`Total Stats"
+            combined_play_data.team_name = b"Total Stats"
             combined_play_data.play_name = play_in_pdb.play_name
         combined_play_data += play_in_pdb
         combined_plays[play_in_pdb.play_name] = combined_play_data
