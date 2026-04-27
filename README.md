@@ -22,10 +22,10 @@ Distributed via the [`pnfl`](../pnfl) umbrella CLI:
 pnfl convert-pdb PDB.pdb output.xlsm -d defense.pln -o offense.pln
 ```
 
-Or via module:
+Include a second defensive/offensive plan with `-d2`/`-o2`:
 
 ```bash
-py -m pnfl_pdbtoexcel PDB.pdb output.xlsm -d defense.pln -o offense.pln
+pnfl convert-pdb PDB.pdb output.xlsm -d defense.pln -d2 defense2.pln -o offense.pln -o2 offense2.pln
 ```
 
 Optional overrides:
