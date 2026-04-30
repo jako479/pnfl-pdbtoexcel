@@ -4,8 +4,6 @@
 :: before the block runs) and would give stale or empty values.
 SETLOCAL ENABLEDELAYEDEXPANSION
 
-cd /d "%~dp0"
-
 :: NOTE: Must use file extension .xlsm to enable double-click sorting
 
 SET SEASON=2048
