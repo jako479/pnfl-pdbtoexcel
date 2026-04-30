@@ -1,3 +1,10 @@
+"""Excel workbook construction for PDB exports.
+
+Owns the xlsxwriter lifecycle, defines worksheet layouts (columns, headers,
+formats, named ranges), and renders rows handed in by the orchestrator.
+Knows nothing about PDB or play pools.
+"""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -8,7 +15,7 @@ import xlsxwriter
 from pnfl_playpool import DefensivePlayRecord, OffensivePlayRecord
 from xlsxwriter.worksheet import Worksheet
 
-from pnfl_pdbtoexcel.config import AppConfig, get_runtime_path
+from pnfl_pdbtoexcel.config import CategoryOrder, Config, get_runtime_path
 from pnfl_pdbtoexcel.pdb import PLAY_DATA
 
 
@@ -35,18 +42,22 @@ class _Formats:
 
 
 class ExcelPdbWorkbook:
+    """Builds the Excel workbook: worksheet layouts, row writers, formats, named ranges, optional VBA."""
+
     def __init__(
         self,
-        config: AppConfig,
+        config: Config,
+        category_order: CategoryOrder,
         filename,
         perform_calculations,
         offense_slot_count: int = 0,
         defense_slot_count: int = 0,
     ):
         self.config = config
+        self.category_order = category_order
         self.filename = Path(filename)
         self.macros_are_enabled = self.filename.suffix.lower() == ".xlsm"
-        self.show_percentages = perform_calculations and config.Settings.CalculatePercentages
+        self.show_percentages = perform_calculations and config.calculate_percentages
         self.offense_slot_count = offense_slot_count
         self.defense_slot_count = defense_slot_count
 
@@ -75,7 +86,7 @@ class ExcelPdbWorkbook:
         self.run_categories: _WorksheetState | None = None
         self.pass_categories: _WorksheetState | None = None
         self.def_categories: _WorksheetState | None = None
-        if self.config.Settings.CalculateCategoryStats:
+        if self.config.calculate_category_stats:
             self.run_categories = self._create_run_categories_worksheet()
             self.pass_categories = self._create_pass_categories_worksheet()
             self.def_categories = self._create_def_categories_worksheet()
@@ -86,7 +97,7 @@ class ExcelPdbWorkbook:
         if self.workbook:
             if self.macros_are_enabled:
                 self._add_conditional_format()
-                if self.config.Settings.CalculateCategoryStats:
+                if self.config.calculate_category_stats:
                     self.workbook.add_vba_project(str(get_runtime_path("vbaProject_categories.bin")))
                 else:
                     self.workbook.add_vba_project(str(get_runtime_path("vbaProject.bin")))
@@ -168,21 +179,30 @@ class ExcelPdbWorkbook:
         ws.set_column_pixels(7, 9, 81)
         ws.write_row(0, 7, ["CATEGORY ORDER", "", ""], self.fmt.options_header)
         ws.write_row(1, 7, ["RUN", "PASS", "DEFENSE"], self.fmt.options_header2)
-        ws.write_column(2, 7, self.config.CategoryOrder.RunCategories)
-        ws.write_column(2, 8, self.config.CategoryOrder.PassCategories)
-        ws.write_column(2, 9, self.config.CategoryOrder.DefenseCategories)
+        ws.write_column(2, 7, self.category_order[PLAY_DATA.PLAY_TYPE.RUN])
+        ws.write_column(2, 8, self.category_order[PLAY_DATA.PLAY_TYPE.PASS])
+        ws.write_column(2, 9, self.category_order[PLAY_DATA.PLAY_TYPE.DEFENSE])
         # NOTES
         ws.write_row(0, 11, ["NOTES"] + [""] * 9, self.fmt.options_header)
-        note = "1. Play data columns (attempts, yards, etc.) utilize bi-directional sort; All other columns sort in ascending order"
+        note = (
+            "1. Play data columns (attempts, yards, etc.) utilize bi-directional sort; "
+            "All other columns sort in ascending order only."
+        )
         ws.write(1, 11, note)
-        note = "2. Built-in columns can be sorted by double-clicking anywhere in the column (i.e. double-click does not edit)"
+        note = (
+            "2. Built-in columns can be sorted by double-clicking anywhere in the "
+            "column (i.e. double-click does not invoke data editor)."
+        )
         ws.write(2, 11, note)
-        note = "3. User-added columns can be sorted by double-clicking the column header (must be populated)"
+        note = (
+            "3. Sort user-added columns by double-clicking populated column header "
+            "(retains double-click to invoke data editor)."
+        )
         ws.write(3, 11, note)
         # Named ranges
-        run_last = 2 + len(self.config.CategoryOrder.RunCategories)
-        pass_last = 2 + len(self.config.CategoryOrder.PassCategories)
-        def_last = 2 + len(self.config.CategoryOrder.DefenseCategories)
+        run_last = 2 + len(self.category_order[PLAY_DATA.PLAY_TYPE.RUN])
+        pass_last = 2 + len(self.category_order[PLAY_DATA.PLAY_TYPE.PASS])
+        def_last = 2 + len(self.category_order[PLAY_DATA.PLAY_TYPE.DEFENSE])
         self.workbook.define_name("HighlightSelectedRow", "=Options!$B$3")
         self.workbook.define_name("RunCategoryOrder", f"=Options!$H$3:$H${run_last}")
         self.workbook.define_name("PassCategoryOrder", f"=Options!$I$3:$I${pass_last}")
@@ -642,7 +662,7 @@ class ExcelPdbWorkbook:
         }
 
         sheets: list[_WorksheetState] = [self.run, self.pass_, self.def_, self.tendencies]
-        if self.config.Settings.CalculateCategoryStats:
+        if self.config.calculate_category_stats:
             assert self.run_categories is not None
             assert self.pass_categories is not None
             assert self.def_categories is not None

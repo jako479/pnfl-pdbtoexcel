@@ -3,43 +3,33 @@ from __future__ import annotations
 import configparser
 import hashlib
 import socket
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
+from typing import TypeAlias
+
+from pnfl_pdbtoexcel.pdb import PLAY_DATA
 
 PACKAGE_DIR = Path(__file__).resolve().parent
-PROJECT_DIR = PACKAGE_DIR.parent.parent
 
 DEFAULT_PLAY_PATH = r"C:\SIERRA\FbPro98\PNFL"
 
 CONFIG_CANDIDATES = [
     Path.cwd() / "convert-pdb.dev.ini",
     Path.cwd() / "convert-pdb.ini",
-    PROJECT_DIR / "config" / "convert-pdb.dev.ini",
-    PROJECT_DIR / "config" / "convert-pdb.ini",
-    PACKAGE_DIR / "convert-pdb.dev.ini",
-    PACKAGE_DIR / "convert-pdb.ini",
+    Path.cwd() / "config" / "convert-pdb.dev.ini",
+    Path.cwd() / "config" / "convert-pdb.ini",
 ]
 
-
-@dataclass(frozen=True)
-class Settings:
-    PlayPath: str = DEFAULT_PLAY_PATH
-    CalculateTotalStats: bool = True
-    CalculatePercentages: bool = True
-    CalculateCategoryStats: bool = False
+CategoryOrder: TypeAlias = Mapping[PLAY_DATA.PLAY_TYPE, list[str]]
 
 
 @dataclass(frozen=True)
-class CategoryOrder:
-    RunCategories: list[str]
-    PassCategories: list[str]
-    DefenseCategories: list[str]
-
-
-@dataclass(frozen=True)
-class AppConfig:
-    Settings: Settings
-    CategoryOrder: CategoryOrder
+class Config:
+    play_path: str = DEFAULT_PLAY_PATH
+    calculate_total_stats: bool = True
+    calculate_percentages: bool = True
+    calculate_category_stats: bool = False
 
 
 def get_runtime_path(filename: str) -> Path:
@@ -53,32 +43,37 @@ def find_config_path() -> Path:
     )
 
 
+def load_config(
+    path: Path | None = None,
+    *,
+    play_path: str | None = None,
+) -> Config:
+    cp = _read_config(path or find_config_path())
+    md5 = hashlib.md5(socket.gethostname().encode())
+    is_dev_machine = md5.hexdigest() == "5c4b925bf527c4f8581815a35a10d658"
+    return Config(
+        play_path=play_path or cp.get("Settings", "PlayPath", fallback=DEFAULT_PLAY_PATH),
+        calculate_total_stats=cp.getboolean("Settings", "CalculateTotalStats", fallback=True),
+        calculate_percentages=cp.getboolean("Settings", "CalculatePercentages", fallback=True),
+        calculate_category_stats=is_dev_machine,
+    )
+
+
+def load_category_order(path: Path | None = None) -> CategoryOrder:
+    cp = _read_config(path or find_config_path())
+    return {
+        PLAY_DATA.PLAY_TYPE.RUN: _parse_category_list(cp, "RunCategories"),
+        PLAY_DATA.PLAY_TYPE.PASS: _parse_category_list(cp, "PassCategories"),
+        PLAY_DATA.PLAY_TYPE.DEFENSE: _parse_category_list(cp, "DefenseCategories"),
+    }
+
+
+def _read_config(path: Path) -> configparser.ConfigParser:
+    cp = configparser.ConfigParser()
+    cp.read(path, encoding="utf-8")
+    return cp
+
+
 def _parse_category_list(cp: configparser.ConfigParser, key: str) -> list[str]:
     raw = cp.get("CategoryOrder", key, fallback="")
     return [line.strip() for line in raw.splitlines() if line.strip()]
-
-
-def load_config(
-    config_path: Path | None = None,
-    play_path: str | None = None,
-) -> AppConfig:
-    path = config_path or find_config_path()
-    cp = configparser.ConfigParser()
-    cp.read(path, encoding="utf-8")
-
-    md5 = hashlib.md5(socket.gethostname().encode())
-    is_dev_machine = md5.hexdigest() == "5c4b925bf527c4f8581815a35a10d658"
-
-    return AppConfig(
-        Settings=Settings(
-            PlayPath=play_path or cp.get("Settings", "PlayPath", fallback=DEFAULT_PLAY_PATH),
-            CalculateTotalStats=cp.getboolean("Settings", "CalculateTotalStats", fallback=True),
-            CalculatePercentages=cp.getboolean("Settings", "CalculatePercentages", fallback=True),
-            CalculateCategoryStats=is_dev_machine,
-        ),
-        CategoryOrder=CategoryOrder(
-            RunCategories=_parse_category_list(cp, "RunCategories"),
-            PassCategories=_parse_category_list(cp, "PassCategories"),
-            DefenseCategories=_parse_category_list(cp, "DefenseCategories"),
-        ),
-    )

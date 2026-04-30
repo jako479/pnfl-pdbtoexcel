@@ -1,3 +1,9 @@
+"""Orchestrates PDB → Excel workbook creation.
+
+Joins plays to the play pool, filters, computes totals and category
+aggregates, sorts, and dispatches rows to ExcelPdbWorkbook.
+"""
+
 from __future__ import annotations
 
 import logging
@@ -6,8 +12,9 @@ from os import PathLike
 
 from fbpro98_gameplan import GamePlan, read_gameplan
 from pnfl_playpool import DefensivePlayRecord, OffensivePlayRecord, PlayPool, PlayRecord, SpecialTeamsPlayRecord
+from pnfl_playpool.pool import DEFENSE_CATEGORIES, PASS_CATEGORIES, RUN_CATEGORIES
 
-from pnfl_pdbtoexcel.config import AppConfig
+from pnfl_pdbtoexcel.config import CategoryOrder, Config
 from pnfl_pdbtoexcel.pdb import PDB, PLAY_DATA
 from pnfl_pdbtoexcel.workbook import ExcelPdbWorkbook
 
@@ -36,24 +43,14 @@ TOTAL_STATS_FILTER = {
     "PRD": (0.29, None),
 }
 
-DEFENSE_OUTPUT_CATEGORIES = {
-    "RunRight",
-    "RunMiddle",
-    "RunLeft",
-    "PassShort",
-    "PassMedium",
-    "PassLong",
-    "RunDazzle",
-    "PassDazzle",
-    "GLrun",
-    "GLpass",
-}
-
 
 class PdbWorkbookCreator:
+    """Reads a PDB, joins plays to the play pool, and writes the result via ExcelPdbWorkbook."""
+
     def __init__(
         self,
-        config: AppConfig,
+        config: Config,
+        category_order: CategoryOrder,
         play_pool: PlayPool,
         pdb: PDB,
         pln_defense: GamePlan | None = None,
@@ -61,7 +58,9 @@ class PdbWorkbookCreator:
         pln_defense_2: GamePlan | None = None,
         pln_offense_2: GamePlan | None = None,
     ) -> None:
+        self._validate_category_order(category_order)
         self.config = config
+        self.category_order = category_order
         self.play_pool = play_pool
         self.pdb = pdb
         self.pln_defense = pln_defense
@@ -69,10 +68,30 @@ class PdbWorkbookCreator:
         self.pln_defense_2 = pln_defense_2
         self.pln_offense_2 = pln_offense_2
 
+    @staticmethod
+    def _validate_category_order(category_order: CategoryOrder) -> None:
+        expected = {
+            PLAY_DATA.PLAY_TYPE.RUN: RUN_CATEGORIES,
+            PLAY_DATA.PLAY_TYPE.PASS: PASS_CATEGORIES,
+            PLAY_DATA.PLAY_TYPE.DEFENSE: DEFENSE_CATEGORIES,
+        }
+        problems: list[str] = []
+        for play_type, required in expected.items():
+            configured = category_order.get(play_type)
+            if configured is None:
+                problems.append(f"{play_type.name}: missing from CategoryOrder")
+                continue
+            missing = required - set(configured)
+            if missing:
+                problems.append(f"{play_type.name}: missing {sorted(missing)}")
+        if problems:
+            raise ValueError("CategoryOrder is incomplete — " + "; ".join(problems))
+
     @classmethod
-    def from_files(
+    def from_config(
         cls,
-        config: AppConfig,
+        config: Config,
+        category_order: CategoryOrder,
         pdb_filename: StrPath,
         pln_def_filename: StrPath | None = None,
         pln_off_filename: StrPath | None = None,
@@ -85,14 +104,23 @@ class PdbWorkbookCreator:
         the building so the constructor doesn't have to. Production code
         calls this; test code calls __init__ directly with fakes.
         """
-        play_pool = PlayPool.from_directory(config.Settings.PlayPath)
+        play_pool = PlayPool.from_directory(config.play_path)
         pdb = PDB(pdb_filename)
         pdb.convert_invalid_play_data(play_pool)
         pln_defense = read_gameplan(pln_def_filename) if pln_def_filename else None
         pln_offense = read_gameplan(pln_off_filename) if pln_off_filename else None
         pln_defense_2 = read_gameplan(pln_def_filename_2) if pln_def_filename_2 else None
         pln_offense_2 = read_gameplan(pln_off_filename_2) if pln_off_filename_2 else None
-        return cls(config, play_pool, pdb, pln_defense, pln_offense, pln_defense_2, pln_offense_2)
+        return cls(
+            config,
+            category_order,
+            play_pool,
+            pdb,
+            pln_defense,
+            pln_offense,
+            pln_defense_2,
+            pln_offense_2,
+        )
 
     def create_workbook(
         self,
@@ -101,6 +129,16 @@ class PdbWorkbookCreator:
         calculate_totals: bool,
         filter_total_stats: bool,
     ) -> None:
+        """Build the Excel workbook at `filename`.
+
+        Args:
+            filename: Output path. Suffix `.xlsm` enables VBA-driven sorting.
+            perform_calculations: If False, omit derived percentage columns.
+            calculate_totals: If True, append a "Total Stats" team summing all teams.
+            filter_total_stats: If True (and calculate_totals), apply TOTAL_STATS_FILTER
+                thresholds (per-category min play count, completion %, yards/attempt)
+                to drop low-volume / low-efficiency plays from the Total Stats rows.
+        """
         logger.info("Attempting to create '%s'", filename)
         if not perform_calculations:
             logger.info("Skipping extra calculations")
@@ -110,6 +148,7 @@ class PdbWorkbookCreator:
 
         with ExcelPdbWorkbook(
             self.config,
+            self.category_order,
             filename,
             perform_calculations,
             offense_slot_count,
@@ -123,10 +162,20 @@ class PdbWorkbookCreator:
                 missing_play_files_logged
             ):
                 resolved_plays.append((play_in_pdb, play_name, team_name, play_record))
-                play_slots = self._get_play_slots(play_in_pdb, play_name)
-                workbook.add_play(play_in_pdb, play_slots, play_record)
                 if combined_plays is not None:
                     self._add_play_stats_to_total_play(combined_plays, play_in_pdb)
+
+            # Sort plays by team, category, and play name
+            resolved_plays.sort(
+                key=lambda x: (
+                    x[0].team_name,
+                    self.category_order[x[0].play_type].index(x[3].pool_category),
+                    x[0].play_name,
+                )
+            )
+            for play_in_pdb, play_name, _, play_record in resolved_plays:
+                play_slots = self._get_play_slots(play_in_pdb, play_name)
+                workbook.add_play(play_in_pdb, play_slots, play_record)
 
             if combined_plays is not None:
                 self._add_total_plays_to_workbook(workbook, combined_plays, filter_total_stats)
@@ -134,7 +183,7 @@ class PdbWorkbookCreator:
             for tendency_data in self.pdb.tendencies:
                 workbook.add_tendency(tendency_data)
 
-            if self.config.Settings.CalculateCategoryStats:
+            if self.config.calculate_category_stats:
                 team_categories_data, categories_data = self._collect_category_stats(
                     resolved_plays,
                     calculate_totals=calculate_totals,
@@ -144,11 +193,12 @@ class PdbWorkbookCreator:
                     workbook.add_category(team_category, category_data)
 
                 if calculate_totals:
-                    for category_name, category_data in categories_data.items():
-                        workbook.add_category(
-                            ("Total Stats", category_name),
-                            category_data,
-                        )
+                    total_cats_sorted = sorted(
+                        categories_data.items(),
+                        key=lambda x: self.category_order[x[1].play_type].index(x[0]),
+                    )
+                    for category_name, category_data in total_cats_sorted:
+                        workbook.add_category(("Total Stats", category_name), category_data)
 
         logger.info("Conversion complete")
 
@@ -209,7 +259,7 @@ class PdbWorkbookCreator:
         if (
             play_in_pdb.play_type == PLAY_DATA.PLAY_TYPE.DEFENSE
             and isinstance(play_record, DefensivePlayRecord)
-            and play_record.pool_category not in DEFENSE_OUTPUT_CATEGORIES
+            and play_record.pool_category not in DEFENSE_CATEGORIES
         ):
             return False
         return True
@@ -224,16 +274,24 @@ class PdbWorkbookCreator:
         else:
             return ("", "")
         return (
-            self._format_slot(plan_1.normal_plays.get(play_name)) if plan_1 else "",
-            self._format_slot(plan_2.normal_plays.get(play_name)) if plan_2 else "",
+            self._format_slot(self._find_slot(plan_1, play_name)) if plan_1 else "",
+            self._format_slot(self._find_slot(plan_2, play_name)) if plan_2 else "",
         )
 
     @staticmethod
-    def _format_slot(play_in_plan) -> str:
-        if not play_in_plan:
+    def _find_slot(plan: GamePlan, play_name: str) -> int | None:
+        target = play_name.casefold()
+        for index, play in enumerate(plan.normal_plays):
+            if play is not None and play.name.casefold() == target:
+                return index
+        return None
+
+    @staticmethod
+    def _format_slot(slot: int | None) -> str:
+        if slot is None:
             return ""
-        row = play_in_plan.slot // 4 + 1
-        col = play_in_plan.slot % 4 + 1
+        row = slot // 4 + 1
+        col = slot % 4 + 1
         return f"{row}-{col}"
 
     def _collect_category_stats(
@@ -280,6 +338,7 @@ class PdbWorkbookCreator:
         combined_plays: dict[bytes, PLAY_DATA],
         filter_total_stats: bool,
     ) -> None:
+        plays_to_write: list[tuple[PLAY_DATA, NormalPlayRecord]] = []
         for play_in_pdb in combined_plays.values():
             play_name = play_in_pdb.play_name.decode("ASCII")
             play_record = self.play_pool.find_by_name(play_name)
@@ -290,6 +349,17 @@ class PdbWorkbookCreator:
             assert isinstance(play_record, (OffensivePlayRecord, DefensivePlayRecord))
             if filter_total_stats and not self._play_meets_criteria(play_in_pdb, play_record):
                 continue
+            plays_to_write.append((play_in_pdb, play_record))
+
+        # Sort total plays by category and play name
+        plays_to_write.sort(
+            key=lambda x: (
+                self.category_order[x[0].play_type].index(x[1].pool_category),
+                x[0].play_name,
+            )
+        )
+        for play_in_pdb, play_record in plays_to_write:
+            play_name = play_in_pdb.play_name.decode("ASCII")
             play_slots = self._get_play_slots(play_in_pdb, play_name)
             workbook.add_play(play_in_pdb, play_slots, play_record)
 

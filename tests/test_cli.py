@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
 from pnfl_pdbtoexcel.cli import parse_args
-from pnfl_pdbtoexcel.config import load_config
-
-from pathlib import Path
+from pnfl_pdbtoexcel.config import load_category_order, load_config
+from pnfl_pdbtoexcel.pdb import PLAY_DATA
 
 
 def test_parse_args_requires_pdbfile_and_outputfile() -> None:
@@ -45,23 +46,31 @@ def test_parse_args_accepts_all_options(tmp_path: Path) -> None:
     config = tmp_path / "config.ini"
     config.touch()
 
-    args = parse_args([
-        str(pdb),
-        "output.xlsm",
-        "-d", str(defense),
-        "-d2", str(defense_2),
-        "-o", str(offense),
-        "-o2", str(offense_2),
-        "--config", str(config),
-        "-c",
-        "-t",
-        "--play-path", r"E:\PNFL",
-    ])
+    args = parse_args(
+        [
+            str(pdb),
+            "output.xlsm",
+            "-d",
+            str(defense),
+            "-d2",
+            str(defense_2),
+            "-o",
+            str(offense),
+            "-o2",
+            str(offense_2),
+            "--config",
+            str(config),
+            "-c",
+            "-t",
+            "--play-path",
+            r"E:\PNFL",
+        ]
+    )
     assert args.plnfile_defense == str(defense)
     assert args.plnfile_defense_2 == str(defense_2)
     assert args.plnfile_offense == str(offense)
     assert args.plnfile_offense_2 == str(offense_2)
-    assert args.config == str(config)
+    assert args.config == Path(str(config))
     assert args.skip_calcs is True
     assert args.skip_totals is True
     assert args.play_path == r"E:\PNFL"
@@ -80,17 +89,17 @@ def test_parse_args_rejects_non_excel_output() -> None:
 def test_config_play_path_override(tmp_path: Path) -> None:
     config_path = tmp_path / "convert-pdb.ini"
     config_path.write_text("[Settings]\nPlayPath=C:\\from-config\n", encoding="utf-8")
-    assert load_config(config_path=config_path).Settings.PlayPath == "C:\\from-config"
-    assert load_config(config_path=config_path, play_path=r"D:\from-cli").Settings.PlayPath == r"D:\from-cli"
+    assert load_config(path=config_path).play_path == "C:\\from-config"
+    assert load_config(path=config_path, play_path=r"D:\from-cli").play_path == r"D:\from-cli"
 
 
 def test_config_falls_back_to_defaults(tmp_path: Path) -> None:
     nonexistent = tmp_path / "nonexistent.ini"
-    c = load_config(config_path=nonexistent)
-    assert c.Settings.PlayPath == r"C:\SIERRA\FbPro98\PNFL"
+    c = load_config(path=nonexistent)
+    assert c.play_path == r"C:\SIERRA\FbPro98\PNFL"
 
 
-def test_config_loads_category_order(tmp_path: Path) -> None:
+def test_loads_category_order(tmp_path: Path) -> None:
     config_path = tmp_path / "convert-pdb.ini"
     config_path.write_text(
         "[Settings]\n\n"
@@ -100,16 +109,16 @@ def test_config_loads_category_order(tmp_path: Path) -> None:
         "DefenseCategories =\n    RunLeft\n    PassShort\n",
         encoding="utf-8",
     )
-    c = load_config(config_path=config_path)
-    assert c.CategoryOrder.RunCategories == ["RL", "RM", "RR"]
-    assert c.CategoryOrder.PassCategories == ["PSL", "PSM"]
-    assert c.CategoryOrder.DefenseCategories == ["RunLeft", "PassShort"]
+    co = load_category_order(path=config_path)
+    assert co[PLAY_DATA.PLAY_TYPE.RUN] == ["RL", "RM", "RR"]
+    assert co[PLAY_DATA.PLAY_TYPE.PASS] == ["PSL", "PSM"]
+    assert co[PLAY_DATA.PLAY_TYPE.DEFENSE] == ["RunLeft", "PassShort"]
 
 
-def test_config_empty_category_order(tmp_path: Path) -> None:
+def test_empty_category_order(tmp_path: Path) -> None:
     config_path = tmp_path / "convert-pdb.ini"
     config_path.write_text("[Settings]\n", encoding="utf-8")
-    c = load_config(config_path=config_path)
-    assert c.CategoryOrder.RunCategories == []
-    assert c.CategoryOrder.PassCategories == []
-    assert c.CategoryOrder.DefenseCategories == []
+    co = load_category_order(path=config_path)
+    assert co[PLAY_DATA.PLAY_TYPE.RUN] == []
+    assert co[PLAY_DATA.PLAY_TYPE.PASS] == []
+    assert co[PLAY_DATA.PLAY_TYPE.DEFENSE] == []

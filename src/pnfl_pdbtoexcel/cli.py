@@ -5,8 +5,7 @@ import logging
 from collections.abc import Sequence
 from pathlib import Path
 
-from pnfl_pdbtoexcel.config import load_config
-from pnfl_pdbtoexcel.pdb_to_excel import PdbWorkbookCreator
+from pnfl_pdbtoexcel.main import convert_pdb
 
 
 def _valid_existing_file(param: str, expected_extensions: tuple[str, ...]) -> str:
@@ -67,7 +66,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--config",
-        type=lambda v: _valid_existing_file(v, (".ini",)),
+        type=lambda v: Path(_valid_existing_file(v, (".ini",))),
         help="use this INI file instead of the default config lookup",
     )
     parser.add_argument(
@@ -84,7 +83,8 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--play-path",
-        help="path to PNFL play files directory (overrides config Settings.PlayPath)",
+        dest="play_path",
+        help="path to PNFL play files directory (overrides config [Settings] PlayPath)",
     )
     return parser
 
@@ -100,20 +100,16 @@ def main(argv: Sequence[str] | None = None) -> int:
         level=logging.INFO,
         format="%(levelname)s: %(message)s",
     )
-
-    config = load_config(
+    convert_pdb(
+        pdb_path=args.pdbfile,
+        output_path=args.outputfile,
+        pln_defense=args.plnfile_defense,
+        pln_offense=args.plnfile_offense,
+        pln_defense_2=args.plnfile_defense_2,
+        pln_offense_2=args.plnfile_offense_2,
         config_path=args.config,
-        play_path=args.play_path,
+        play_path_override=args.play_path,
+        skip_calcs=args.skip_calcs,
+        skip_totals=args.skip_totals,
     )
-    calculate_totals = config.Settings.CalculateTotalStats and not args.skip_totals
-
-    creator = PdbWorkbookCreator.from_files(
-        config,
-        args.pdbfile,
-        args.plnfile_defense,
-        args.plnfile_offense,
-        args.plnfile_defense_2,
-        args.plnfile_offense_2,
-    )
-    creator.create_workbook(args.outputfile, not args.skip_calcs, calculate_totals, False)
     return 0

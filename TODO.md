@@ -1,1 +1,3 @@
-1. Fix filter so Total Stats appears at the bottom, instead of Alphabetically
+1. Remove filtering thru script??
+2. Add filtering to config??
+3. Convert to table for filtering by greater-than, less-than??

@@ -4,8 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from pnfl_pdbtoexcel.pdb import InvalidPDBError, PDB, PLAY_DATA
-
+from pnfl_pdbtoexcel.pdb import PDB, PLAY_DATA, InvalidPDBError
 
 TEST_DATA_DIR = Path(__file__).resolve().parent / "data"
 REAL_PDB_PATH = TEST_DATA_DIR / "2045-2047.pdb"

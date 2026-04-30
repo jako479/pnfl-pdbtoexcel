@@ -1,9 +1,17 @@
+"""FbPro98 WinLogStats PDB binary format.
+
+ctypes structures for parsing .pdb files: per-team per-play stats
+(PLAY_DATA), down-and-distance tendencies (TENDENCY_DATA / DOWN_DATA),
+and the wrapper class (PDB) that loads and normalizes the file.
+"""
+
 from __future__ import annotations
 
 import ctypes
 import logging
 from enum import IntEnum
 from pathlib import Path
+from typing import ClassVar
 
 logger = logging.getLogger(__name__)
 
@@ -15,6 +23,14 @@ RENAMED_PLAYS = {
 
 
 class PLAY_DATA(ctypes.LittleEndianStructure):
+    """One per-team per-play stats record from the PDB file.
+
+    Counts plays, yards, completions, fumbles, interceptions, sacks, TDs,
+    and yards-allowed totals for a single (team, play) pair. Supports
+    `+=` to merge two records (used to combine duplicates and to build
+    Total Stats across teams).
+    """
+
     class PLAY_TYPE(IntEnum):
         RUN = 0
         PASS = 1
@@ -22,7 +38,7 @@ class PLAY_DATA(ctypes.LittleEndianStructure):
         DEFENSE = 3
         ONSIDE = 5
 
-    _fields_ = [
+    _fields_: ClassVar = [
         ("play_type", ctypes.c_uint32),
         ("team_name", ctypes.c_char * 64),
         ("play_name", ctypes.c_char * 128),
@@ -78,7 +94,9 @@ class PLAY_DATA(ctypes.LittleEndianStructure):
 
 
 class DOWN_DATA(ctypes.LittleEndianStructure):
-    _fields_ = [
+    """Play counts split by down (1st/2nd/3rd/4th). Building block for TENDENCY_DATA."""
+
+    _fields_: ClassVar = [
         ("first_down", ctypes.c_uint32),
         ("second_down", ctypes.c_uint32),
         ("third_down", ctypes.c_uint32),
@@ -87,7 +105,9 @@ class DOWN_DATA(ctypes.LittleEndianStructure):
 
 
 class TENDENCY_DATA(ctypes.LittleEndianStructure):
-    _fields_ = [
+    """Per-team run/pass tendencies split by down and yards-to-go bucket (0-1, 2-5, 6-10, 10+)."""
+
+    _fields_: ClassVar = [
         ("team_name", ctypes.c_char * 64),
         ("run_zero_to_one", DOWN_DATA),
         ("pass_zero_to_one", DOWN_DATA),
@@ -112,11 +132,21 @@ class InvalidPDBError(BaseException):
 
 
 class PDB:
+    """Loads a .pdb file and exposes its plays (keyed by play_type and (team, play)) and tendencies."""
+
     class DATA_TYPE(IntEnum):
         PLAY = 0
         TENDENCY = 1
 
     def __init__(self, filename):
+        """Parse the PDB file synchronously.
+
+        Populates `self.plays` (dict keyed by PLAY_TYPE → dict keyed by (team, play) →
+        PLAY_DATA) and `self.tendencies` (list of TENDENCY_DATA, sorted by team).
+        Duplicate (team, play) records are merged via PLAY_DATA's `+=`. Names listed
+        in RENAMED_PLAYS are rewritten in place. Raises InvalidPDBError on a bad
+        record-type byte.
+        """
         self.filename = filename
         self.plays = {
             PLAY_DATA.PLAY_TYPE.RUN: {},
@@ -137,9 +167,7 @@ class PDB:
                     break
                 data_type = int.from_bytes(data, byteorder="little")
                 if data_type < self.DATA_TYPE.PLAY or data_type > self.DATA_TYPE.TENDENCY:
-                    raise InvalidPDBError(
-                        f"Invalid data type '{data}' at {pdb.tell()-1:#x} in {file_path}"
-                    )
+                    raise InvalidPDBError(f"Invalid data type '{data}' at {pdb.tell() - 1:#x} in {file_path}")
                 if data_type == self.DATA_TYPE.PLAY:
                     data = pdb.read(ctypes.sizeof(PLAY_DATA))
                     play_in_pdb = PLAY_DATA.from_buffer_copy(data)
@@ -173,6 +201,16 @@ class PDB:
                         )
 
     def convert_invalid_play_data(self, play_pool):
+        """Reclassify offensive plays the engine logged under the wrong play_type.
+
+        FbPro98's stat collector occasionally records a pass play under PLAY_TYPE.RUN
+        (or vice versa) — e.g. a sacked QB on a designed pass shows up in run stats.
+        This method walks RUN/PASS plays, looks up the canonical play in `play_pool`,
+        and if the actual type disagrees with the PDB's classification, moves the
+        record to the correct bucket. Stats are reattributed accordingly: yards lost
+        on a misclassified run get partially treated as sacks; misclassified pass
+        interceptions get folded back into run fumbles.
+        """
         from pnfl_playpool import OffensivePlayRecord
 
         play_type_swap = {
@@ -185,9 +223,8 @@ class PDB:
                 record = play_pool.find_by_name(play_name)
                 if not isinstance(record, OffensivePlayRecord):
                     continue
-                if (
-                    (original_play_type == PLAY_DATA.PLAY_TYPE.RUN and record.is_pass)
-                    or (original_play_type == PLAY_DATA.PLAY_TYPE.PASS and record.is_run)
+                if (original_play_type == PLAY_DATA.PLAY_TYPE.RUN and record.is_pass) or (
+                    original_play_type == PLAY_DATA.PLAY_TYPE.PASS and record.is_run
                 ):
                     new_play_type = play_type_swap[original_play_type]
                     original_play = self.plays[original_play_type][play_key]
@@ -218,13 +255,3 @@ class PDB:
                     new_play.points_scored += original_play.points_scored
                     self.plays[new_play_type][play_key] = new_play
                     self.plays[original_play_type].pop(play_key)
-
-
-__all__ = [
-    "DOWN_DATA",
-    "InvalidPDBError",
-    "PDB",
-    "PLAY_DATA",
-    "RENAMED_PLAYS",
-    "TENDENCY_DATA",
-]
