@@ -12,7 +12,7 @@ requires-python = ">=3.10"
 dependencies = ["xlsxwriter", "fbpro98-gameplan", "pnfl-playpool"]
 
 [project.optional-dependencies]
-dev = ["pytest", "ruff"]
+dev = ["pytest", "pyright==1.1.409", "ruff", "ipython"]
 
 [project.entry-points."pnfl.commands"]
 convert-pdb = "pnfl_pdbtoexcel.cli:main"
@@ -29,6 +29,37 @@ addopts = "-ra --strict-markers --strict-config"
 
 [tool.ruff]
 line-length = 120
+target-version = "py310"
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "F",   # pyflakes (unused imports/vars, undefined names)
+    "I",   # isort (import sorting)
+    "B",   # flake8-bugbear (likely bugs)
+    "UP",  # pyupgrade (modernize syntax)
+    "RUF", # ruff-specific
+]
 
 [tool.ruff.format]
 quote-style = "double"
+
+[tool.pyright]
+include = ["src", "tests", "scripts"]
+exclude = [
+    "**/*.egg-info",
+    "**/.*",
+    "**/.venv",
+    "**/__pycache__",
+    "**/build",
+    "**/dist",
+    "**/node_modules",
+    "**/output",
+    "**/venv",
+]
+extraPaths = ["src"]
+typeCheckingMode = "standard"
+reportUnusedImport = "warning"
+pythonVersion = "3.10"
+venvPath = ".."
+venv = ".venv"
