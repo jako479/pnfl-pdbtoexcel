@@ -86,7 +86,7 @@ class ExcelPdbWorkbook:
         self.run_categories: _WorksheetState | None = None
         self.pass_categories: _WorksheetState | None = None
         self.def_categories: _WorksheetState | None = None
-        if self.config.calculate_category_stats:
+        if self.config.include_category_worksheets:
             self.run_categories = self._create_run_categories_worksheet()
             self.pass_categories = self._create_pass_categories_worksheet()
             self.def_categories = self._create_def_categories_worksheet()
@@ -97,7 +97,7 @@ class ExcelPdbWorkbook:
         if self.workbook:
             if self.macros_are_enabled:
                 self._add_conditional_format()
-                if self.config.calculate_category_stats:
+                if self.config.include_category_worksheets:
                     self.workbook.add_vba_project(str(get_runtime_path("vbaProject_categories.bin")))
                 else:
                     self.workbook.add_vba_project(str(get_runtime_path("vbaProject.bin")))
@@ -567,7 +567,7 @@ class ExcelPdbWorkbook:
 
         if self.show_percentages:
             row_data.insert(6, round(int(category_data.fumbles) / int(category_data.play_count), 3))
-            row_data.insert(8, round(int(category_data.sacks) / int(category_data.play_count), 3))
+            row_data.insert(8, round(int(category_data.touchdowns_offense) / int(category_data.play_count), 3))
 
         assert self.run_categories is not None
         self.run_categories.worksheet.write_row(self.run_categories.rows, 0, row_data)
@@ -662,7 +662,7 @@ class ExcelPdbWorkbook:
         }
 
         sheets: list[_WorksheetState] = [self.run, self.pass_, self.def_, self.tendencies]
-        if self.config.calculate_category_stats:
+        if self.config.include_category_worksheets:
             assert self.run_categories is not None
             assert self.pass_categories is not None
             assert self.def_categories is not None

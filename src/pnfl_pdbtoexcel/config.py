@@ -1,12 +1,9 @@
 from __future__ import annotations
 
 import configparser
-import hashlib
-import socket
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TypeAlias
 
 from pnfl_pdbtoexcel.pdb import PLAY_DATA
 
@@ -21,7 +18,7 @@ CONFIG_CANDIDATES = [
     Path.cwd() / "config" / "convert-pdb.ini",
 ]
 
-CategoryOrder: TypeAlias = Mapping[PLAY_DATA.PLAY_TYPE, list[str]]
+type CategoryOrder = Mapping[PLAY_DATA.PLAY_TYPE, list[str]]
 
 
 @dataclass(frozen=True)
@@ -29,7 +26,7 @@ class Config:
     play_path: str = DEFAULT_PLAY_PATH
     calculate_total_stats: bool = True
     calculate_percentages: bool = True
-    calculate_category_stats: bool = False
+    include_category_worksheets: bool = False
 
 
 def get_runtime_path(filename: str) -> Path:
@@ -49,13 +46,12 @@ def load_config(
     play_path: str | None = None,
 ) -> Config:
     cp = _read_config(path or find_config_path())
-    md5 = hashlib.md5(socket.gethostname().encode())
-    is_dev_machine = md5.hexdigest() == "5c4b925bf527c4f8581815a35a10d658"
     return Config(
         play_path=play_path or cp.get("Settings", "PlayPath", fallback=DEFAULT_PLAY_PATH),
         calculate_total_stats=cp.getboolean("Settings", "CalculateTotalStats", fallback=True),
         calculate_percentages=cp.getboolean("Settings", "CalculatePercentages", fallback=True),
-        calculate_category_stats=is_dev_machine,
+        # Hidden feature: undocumented in the released config and CLI help.
+        include_category_worksheets=cp.getboolean("Settings", "IncludeCategoryWorksheets", fallback=False),
     )
 
 

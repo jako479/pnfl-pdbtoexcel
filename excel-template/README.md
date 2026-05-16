@@ -1,8 +1,6 @@
 # VBA Templates
 
-Master macro-enabled workbooks for pnfl-pdbtoexcel. The `.bin` files in
-`src/pnfl_pdbtoexcel/` are extracted from these and embedded into generated
-`.xlsm` output by xlsxwriter.
+Master macro-enabled workbooks for pnfl-pdbtoexcel. The `.bin` files in `src/pnfl_pdbtoexcel/` are extracted from these and embedded into generated `.xlsm` output by xlsxwriter.
 
 | Template                        | Binary                      | Used when              |
 | ------------------------------- | --------------------------- | ---------------------- |

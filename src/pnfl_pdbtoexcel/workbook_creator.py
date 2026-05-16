@@ -11,12 +11,19 @@ from collections.abc import Iterator
 from os import PathLike
 
 from fbpro98_gameplan import GamePlan, read_gameplan
-from pnfl_playpool import DefensivePlayRecord, OffensivePlayRecord, PlayPool, PlayRecord, SpecialTeamsPlayRecord
+from pnfl_playpool import (
+    DefensivePlayRecord,
+    OffensivePlayRecord,
+    PlayPool,
+    PlayRecord,
+    SpecialTeamsPlayRecord,
+    read_play_pool,
+)
 from pnfl_playpool.pool import DEFENSE_CATEGORIES, PASS_CATEGORIES, RUN_CATEGORIES
 
 from pnfl_pdbtoexcel.config import CategoryOrder, Config
+from pnfl_pdbtoexcel.excel_workbook import ExcelPdbWorkbook
 from pnfl_pdbtoexcel.pdb import PDB, PLAY_DATA
-from pnfl_pdbtoexcel.workbook import ExcelPdbWorkbook
 
 logger = logging.getLogger(__name__)
 
@@ -104,7 +111,7 @@ class PdbWorkbookCreator:
         the building so the constructor doesn't have to. Production code
         calls this; test code calls __init__ directly with fakes.
         """
-        play_pool = PlayPool.from_directory(config.play_path)
+        play_pool = read_play_pool(config.play_path)
         pdb = PDB(pdb_filename)
         pdb.convert_invalid_play_data(play_pool)
         pln_defense = read_gameplan(pln_def_filename) if pln_def_filename else None
@@ -183,7 +190,7 @@ class PdbWorkbookCreator:
             for tendency_data in self.pdb.tendencies:
                 workbook.add_tendency(tendency_data)
 
-            if self.config.calculate_category_stats:
+            if self.config.include_category_worksheets:
                 team_categories_data, categories_data = self._collect_category_stats(
                     resolved_plays,
                     calculate_totals=calculate_totals,

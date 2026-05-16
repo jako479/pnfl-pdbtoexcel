@@ -1,7 +1,6 @@
 # pnfl-pdbtoexcel
 
-Exports the contents of a WinLogStats database (.pdb) into an Excel worksheet (.xlsm).
-Uses `fbpro98-gameplan` for `.pln` parsing and `pnfl-playpool` for play classification.
+Exports the contents of a WinLogStats database (.pdb) into an Excel worksheet (.xlsm). Uses `fbpro98-gameplan` for `.pln` parsing and `pnfl-playpool` for play classification.
 
 ## Setup
 
@@ -58,5 +57,4 @@ pytest
 
 ## Building a Release
 
-This project is distributed as part of the [`pnfl`](../pnfl) umbrella CLI.
-See `pnfl/scripts/build_release.py` for release packaging.
+This project is distributed as part of the [`pnfl`](../pnfl) umbrella CLI. See `pnfl/scripts/build_release.py` for release packaging.

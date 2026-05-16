@@ -1,14 +1,16 @@
 [build-system]
-requires = ["setuptools>=61.0"]
+requires = ["setuptools>=77.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "pnfl-pdbtoexcel"
-version = "1.0.2"
+version = "0.1.0"
 description = "Exports the contents of a WinLogStats database (.pdb) into an Excel worksheet (.xlsm)"
-authors = [{ name = "Brian J" }]
+authors = [{ name = "Brian Jacobs" }]
 readme = "README.md"
-requires-python = ">=3.10"
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.13"
 dependencies = ["xlsxwriter", "fbpro98-gameplan", "pnfl-playpool"]
 
 [project.optional-dependencies]
@@ -16,6 +18,10 @@ dev = ["pytest", "pyright==1.1.409", "ruff", "ipython"]
 
 [project.entry-points."pnfl.commands"]
 convert-pdb = "pnfl_pdbtoexcel.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/jako479/pnfl-pdbtoexcel"
+Repository = "https://github.com/jako479/pnfl-pdbtoexcel"
 
 [tool.setuptools.packages.find]
 where = ["src"]
@@ -29,7 +35,7 @@ addopts = "-ra --strict-markers --strict-config"
 
 [tool.ruff]
 line-length = 120
-target-version = "py310"
+target-version = "py313"
 
 [tool.ruff.lint]
 select = [
@@ -67,6 +73,6 @@ exclude = [
 extraPaths = ["src"]
 typeCheckingMode = "standard"
 reportUnusedImport = "warning"
-pythonVersion = "3.10"
+pythonVersion = "3.13"
 venvPath = ".."
 venv = ".venv"
