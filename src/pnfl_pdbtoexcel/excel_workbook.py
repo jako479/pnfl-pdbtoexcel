@@ -218,7 +218,7 @@ class ExcelPdbWorkbook:
             "Slot 2",
             "Play",
             "Type",
-            "Att",
+            "Rushes",
             "Yards",
             "Avg",
             "Fumbles",
@@ -293,6 +293,9 @@ class ExcelPdbWorkbook:
             "Slot 2",
             "Play",
             "Type",
+            "Calls",
+            "Yards",
+            "Avg",
             "vs Run",
             "Yards",
             "Avg",
@@ -313,13 +316,14 @@ class ExcelPdbWorkbook:
         ws.set_column_pixels(5, 5, 37)
         ws.set_column_pixels(8, 8, None, self.fmt.avg)
         ws.set_column_pixels(11, 11, None, self.fmt.avg)
+        ws.set_column_pixels(14, 14, None, self.fmt.avg)
         if self.show_percentages:
-            header.insert(14, "TO %")
-            ws.set_column_pixels(14, 14, None, self.fmt.percent_1)
-            header.insert(16, "Sack %")
-            ws.set_column_pixels(16, 16, None, self.fmt.percent_1)
-            header.insert(19, "TD/Off %")
+            header.insert(17, "TO %")
+            ws.set_column_pixels(17, 17, None, self.fmt.percent_1)
+            header.insert(19, "Sack %")
             ws.set_column_pixels(19, 19, None, self.fmt.percent_1)
+            header.insert(22, "TD/Off %")
+            ws.set_column_pixels(22, 22, None, self.fmt.percent_1)
         ws.write_row(0, 0, header)
         ws.freeze_panes(1, 0)
         ws.autofilter("A1:D1")  # pyright: ignore[reportCallIssue]
@@ -349,7 +353,7 @@ class ExcelPdbWorkbook:
         header = [
             "Team",
             "Category",
-            "Att",
+            "Rushes",
             "Yards",
             "Avg",
             "Fumbles",
@@ -521,6 +525,12 @@ class ExcelPdbWorkbook:
             else 0.0
         )
 
+        # Calls / Yards / Avg: combined run + pass defense. Not stored in the
+        # PDB -- derived by summing the run and pass columns for the play.
+        total_calls = int(play_data.run_plays_against) + int(play_data.pass_plays_against)
+        total_yards = int(play_data.rush_yards_allowed) + int(play_data.pass_yards_allowed)
+        total_avg = total_yards / total_calls if total_calls > 0 else 0.0
+
         slot_1, slot_2 = play_slots
         row_data = [
             play_data.team_name.decode("ASCII"),
@@ -529,6 +539,9 @@ class ExcelPdbWorkbook:
             slot_2,
             play_data.play_name.decode("ASCII"),
             play_type,
+            total_calls,
+            total_yards,
+            round(total_avg, 1),
             play_data.run_plays_against,
             play_data.rush_yards_allowed,
             round(rush_avg, 1),
@@ -544,10 +557,10 @@ class ExcelPdbWorkbook:
 
         if self.show_percentages:
             row_data.insert(
-                14, round((int(play_data.fumbles) + int(play_data.interceptions)) / int(play_data.play_count), 3)
+                17, round((int(play_data.fumbles) + int(play_data.interceptions)) / int(play_data.play_count), 3)
             )
-            row_data.insert(16, round(int(play_data.sacks) / int(play_data.play_count), 3))
-            row_data.insert(19, round(int(play_data.touchdowns_offense) / int(play_data.play_count), 3))
+            row_data.insert(19, round(int(play_data.sacks) / int(play_data.play_count), 3))
+            row_data.insert(22, round(int(play_data.touchdowns_offense) / int(play_data.play_count), 3))
 
         self.def_.worksheet.write_row(self.def_.rows, 0, row_data)
         self.def_.rows += 1

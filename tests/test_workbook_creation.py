@@ -253,7 +253,7 @@ def test_run_plays_cell_values(workbook_no_gameplans: Path) -> None:
     rows = _read_sheet_cells(workbook_no_gameplans, "Run Plays")
     assert rows[0] == [
         "Team", "Category", "Slot 1", "Slot 2", "Play", "Type",
-        "Att", "Yards", "Avg", "Fumbles", "Fumble %", "TD", "TD %",
+        "Rushes", "Yards", "Avg", "Fumbles", "Fumble %", "TD", "TD %",
     ]  # fmt: skip
     assert rows[1] == ["Atlanta", "RL", "", "", "AF22rl12", "", 3, 9, 3, 0, 0, 0, 0]
     assert rows[3] == ["Atlanta", "RL", "", "", "AZ26RL62", "", 3, 10, 3.3, 0, 0, 1, 0.333]
@@ -277,14 +277,23 @@ def test_def_plays_cell_values(workbook_no_gameplans: Path) -> None:
     rows = _read_sheet_cells(workbook_no_gameplans, "Def Plays")
     assert rows[0] == [
         "Team", "Category", "Slot 1", "Slot 2", "Play", "Type",
-        "vs Run", "Yards", "Avg", "vs Pass", "Yards", "Avg",
+        "Calls", "Yards", "Avg", "vs Run", "Yards", "Avg", "vs Pass", "Yards", "Avg",
         "Fumbles", "Int", "TO %", "Sacks", "Sack %", "TD/Def", "TD/Off", "TD/Off %",
     ]  # fmt: skip
-    # First row, with Type ("3-4") populated.
-    assert rows[1] == ["Atlanta", "RunLeft", "", "", "AF31rl3H", "3-4", 4, 8, 2, 1, 0, 0, 1, 0, 0.2, 1, 0.2, 0, 1, 0.2]
+    # First row, with Type ("3-4") populated. Calls/Yards/Avg = run + pass combined.
+    assert rows[1] == [
+        "Atlanta", "RunLeft", "", "", "AF31rl3H", "3-4",
+        5, 8, 1.6, 4, 8, 2, 1, 0, 0, 1, 0, 0.2, 1, 0.2, 0, 1, 0.2,
+    ]  # fmt: skip
     # Negative yardage row.
-    assert rows[3] == ["Atlanta", "RunLeft", "", "", "AF32rlZD", "3-4", 1, -1, -1, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-    assert rows[-1] == ["Total Stats", "GLpass", "", "", "SF61GP1R", "", 0, 0, 0, 1, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0]
+    assert rows[3] == [
+        "Atlanta", "RunLeft", "", "", "AF32rlZD", "3-4",
+        3, -1, -0.3, 1, -1, -1, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    ]  # fmt: skip
+    assert rows[-1] == [
+        "Total Stats", "GLpass", "", "", "SF61GP1R", "",
+        1, 2, 2, 0, 0, 0, 1, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0,
+    ]  # fmt: skip
 
 
 def test_tendencies_cell_values(workbook_no_gameplans: Path) -> None:
@@ -322,7 +331,7 @@ def test_category_worksheets_added(workbook_with_categories: Path) -> None:
 
 def test_run_categories_cell_values(workbook_with_categories: Path) -> None:
     rows = _read_sheet_cells(workbook_with_categories, "Run Categories")
-    assert rows[0] == ["Team", "Category", "Att", "Yards", "Avg", "Fumbles", "Fumble %", "TD", "TD %"]
+    assert rows[0] == ["Team", "Category", "Rushes", "Yards", "Avg", "Fumbles", "Fumble %", "TD", "TD %"]
     assert rows[1] == ["Atlanta", "RL", 97, 407, 4.2, 2, 0.021, 8, 0.082]
     assert rows[3] == ["Atlanta", "RR", 175, 750, 4.3, 4, 0.023, 7, 0.04]
     assert rows[-1] == ["Total Stats", "GLR", 798, 2378, 3, 14, 0.018, 114, 0.143]
