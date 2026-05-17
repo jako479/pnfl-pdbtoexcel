@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "pnfl-pdbtoexcel"
 version = "0.1.0"
-description = "Exports the contents of a WinLogStats database (.pdb) into an Excel worksheet (.xlsm)"
+description = "Exports the contents of a WinLogStats database (.pdb) into an Excel worksheet (.xlsm)."
 authors = [{ name = "Brian Jacobs" }]
 readme = "README.md"
 license = "MIT"
