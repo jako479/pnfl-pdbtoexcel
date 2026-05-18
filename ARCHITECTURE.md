@@ -11,7 +11,7 @@ src/pnfl_pdbtoexcel/
 ├── main.py                 # convert_pdb() orchestration
 ├── config.py               # Config dataclass, CategoryOrder, load_config(), load_category_order()
 ├── pdb.py                  # PDB binary format (ctypes) and parser
-├── workbook.py             # ExcelPdbWorkbook — low-level XlsxWriter row/sheet helpers
+├── excel_workbook.py       # ExcelPdbWorkbook — low-level XlsxWriter row/sheet helpers
 ├── workbook_creator.py     # PdbWorkbookCreator — joins PDB stats to play pool, sorts, totals
 └── resources/              # vbaProject*.bin — XLSM macro blocks
 ```
