@@ -45,25 +45,25 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "-d",
-        "--plnfile-defense",
+        "--pln-def",
         type=lambda v: _valid_file_extension(v, (".pln",)),
         help="defensive game plan file (.PLN)",
     )
     parser.add_argument(
         "-d2",
-        "--plnfile-defense-2",
+        "--pln-def-2",
         type=lambda v: _valid_file_extension(v, (".pln",)),
         help="second defensive game plan file (.PLN)",
     )
     parser.add_argument(
         "-o",
-        "--plnfile-offense",
+        "--pln-off",
         type=lambda v: _valid_file_extension(v, (".pln",)),
         help="offensive game plan file (.PLN)",
     )
     parser.add_argument(
         "-o2",
-        "--plnfile-offense-2",
+        "--pln-off-2",
         type=lambda v: _valid_file_extension(v, (".pln",)),
         help="second offensive game plan file (.PLN)",
     )
@@ -73,13 +73,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="use this INI file instead of the default config lookup",
     )
     parser.add_argument(
-        "-c",
         "--skip-calcs",
         action="store_true",
         help="prevents the extra calculation columns (overrides config settings)",
     )
     parser.add_argument(
-        "-t",
         "--skip-totals",
         action="store_true",
         help="prevents totalling stats (overrides config settings)",
@@ -105,10 +103,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     for path in (
         args.pdbfile,
-        args.plnfile_defense,
-        args.plnfile_defense_2,
-        args.plnfile_offense,
-        args.plnfile_offense_2,
+        args.pln_def,
+        args.pln_def_2,
+        args.pln_off,
+        args.pln_off_2,
         args.config,
     ):
         if path is not None and not Path(path).is_file():
@@ -118,10 +116,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         convert_pdb(
             pdb_path=args.pdbfile,
             output_path=args.outputfile,
-            pln_defense=args.plnfile_defense,
-            pln_offense=args.plnfile_offense,
-            pln_defense_2=args.plnfile_defense_2,
-            pln_offense_2=args.plnfile_offense_2,
+            pln_defense=args.pln_def,
+            pln_offense=args.pln_off,
+            pln_defense_2=args.pln_def_2,
+            pln_offense_2=args.pln_off_2,
             config_path=args.config,
             play_path_override=args.play_path,
             skip_calcs=args.skip_calcs,

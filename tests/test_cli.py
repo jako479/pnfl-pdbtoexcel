@@ -22,10 +22,10 @@ def test_parse_args_accepts_positional_args(tmp_path: Path) -> None:
     args = parse_args([str(pdb), "output.xlsx"])
     assert args.pdbfile == str(pdb)
     assert args.outputfile == "output.xlsx"
-    assert args.plnfile_defense is None
-    assert args.plnfile_offense is None
-    assert args.plnfile_defense_2 is None
-    assert args.plnfile_offense_2 is None
+    assert args.pln_def is None
+    assert args.pln_off is None
+    assert args.pln_def_2 is None
+    assert args.pln_off_2 is None
     assert args.config is None
     assert args.skip_calcs is False
     assert args.skip_totals is False
@@ -60,16 +60,16 @@ def test_parse_args_accepts_all_options(tmp_path: Path) -> None:
             str(offense_2),
             "--config",
             str(config),
-            "-c",
-            "-t",
+            "--skip-calcs",
+            "--skip-totals",
             "--play-path",
             r"E:\PNFL",
         ]
     )
-    assert args.plnfile_defense == str(defense)
-    assert args.plnfile_defense_2 == str(defense_2)
-    assert args.plnfile_offense == str(offense)
-    assert args.plnfile_offense_2 == str(offense_2)
+    assert args.pln_def == str(defense)
+    assert args.pln_def_2 == str(defense_2)
+    assert args.pln_off == str(offense)
+    assert args.pln_off_2 == str(offense_2)
     assert args.config == Path(str(config))
     assert args.skip_calcs is True
     assert args.skip_totals is True

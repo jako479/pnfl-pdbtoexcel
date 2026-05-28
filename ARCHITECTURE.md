@@ -16,6 +16,8 @@ src/pnfl_pdbtoexcel/
 └── resources/              # vbaProject*.bin — XLSM macro blocks
 ```
 
+`specs/pdb.md` documents the on-disk byte layout independently of this code.
+
 ## What this package does
 
 - Provides a CLI: `pnfl convert-pdb PDB OUTPUT [-o OFFENSE.pln] [-d DEFENSE.pln] [-o2 ...] [-d2 ...] [--play-path DIR] [--config FILE] [--skip-calcs] [--skip-totals]`
@@ -33,13 +35,20 @@ src/pnfl_pdbtoexcel/
 
 ## What this package enforces
 
-CLI-level (raise SystemExit via argparse):
-- `pdbfile` exists and has `.pdb` extension
+CLI parsing (argparse — usage block + exit 2):
+
+- `pdbfile` has `.pdb` extension
 - `outputfile` has `.xlsx` or `.xlsm` extension
-- Each `--plnfile-*` argument exists and has `.pln` extension
-- `--config` exists and has `.ini` extension
+- Each `--pln-*` argument has `.pln` extension
+- `--config` has `.ini` extension
+
+CLI runtime (`main()` — `prog: detail` to stderr + exit 1):
+
+- Each input file path actually exists on disk
+- I/O errors from `convert_pdb` (`OSError`, `xlsxwriter.exceptions.XlsxWriterException`) are caught and reported as one-line messages, not tracebacks
 
 Config (raise `ValueError` / propagate from `configparser`):
+
 - Required `[Settings]` keys present
 - `PlayPath` resolves to a real directory at `read_play_pool()` time
 

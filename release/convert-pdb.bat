@@ -6,11 +6,13 @@ cd /d "%~dp0"
 :: File extension matters! Use .xlsm for macro-enabled sorting.
 :: ===================================================================
 
-SET PDB_FILE=C:\PATH\TO\STATS.pdb
-SET OUTPUT_FILE=C:\PATH\TO\OUTPUT.xlsm
-SET DEFENSE_PLN=C:\PATH\TO\DEFENSE.pln
-SET OFFENSE_PLN=C:\PATH\TO\OFFENSE.pln
+SET "PDB_FILE=C:\PATH\TO\STATS.pdb"
+SET "OUTPUT_FILE=C:\PATH\TO\OUTPUT.xlsm"
+SET "DEF1_PLN=C:\PATH\TO\DEFENSE1.pln"
+SET "OFF1_PLN=C:\PATH\TO\OFFENSE1.pln"
+SET "DEF2_PLN=C:\PATH\TO\DEFENSE2.pln"
+SET "OFF2_PLN=C:\PATH\TO\OFFENSE2.pln"
 
-pnfl convert-pdb "%PDB_FILE%" "%OUTPUT_FILE%" -d "%DEFENSE_PLN%" -o "%OFFENSE_PLN%"
+pnfl convert-pdb "%PDB_FILE%" "%OUTPUT_FILE%" -d "%DEF1_PLN%" -o "%OFF1_PLN%" -d2 "%DEF2_PLN%" -o2 "%OFF2_PLN%"
 
 pause
