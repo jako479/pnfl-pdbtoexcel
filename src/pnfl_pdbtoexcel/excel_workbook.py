@@ -318,7 +318,7 @@ class ExcelPdbWorkbook:
         ws.set_column_pixels(11, 11, None, self.fmt.avg)
         ws.set_column_pixels(14, 14, None, self.fmt.avg)
         if self.show_percentages:
-            header.insert(17, "TO %")
+            header.insert(17, "Int %")
             ws.set_column_pixels(17, 17, None, self.fmt.percent_1)
             header.insert(19, "Sack %")
             ws.set_column_pixels(19, 19, None, self.fmt.percent_1)
@@ -412,6 +412,9 @@ class ExcelPdbWorkbook:
         header = [
             "Team",
             "Category",
+            "Calls",
+            "Yards",
+            "Avg",
             "vs Run",
             "Yards",
             "Avg",
@@ -428,13 +431,14 @@ class ExcelPdbWorkbook:
         ws.set_column_pixels(1, 1, 100)
         ws.set_column_pixels(4, 4, None, self.fmt.avg)
         ws.set_column_pixels(7, 7, None, self.fmt.avg)
+        ws.set_column_pixels(10, 10, None, self.fmt.avg)
         if self.show_percentages:
-            header.insert(10, "TO %")
-            ws.set_column_pixels(10, 10, None, self.fmt.percent_1)
-            header.insert(12, "Sack %")
-            ws.set_column_pixels(12, 12, None, self.fmt.percent_1)
-            header.insert(15, "TD/Off %")
+            header.insert(13, "Int %")
+            ws.set_column_pixels(13, 13, None, self.fmt.percent_1)
+            header.insert(15, "Sack %")
             ws.set_column_pixels(15, 15, None, self.fmt.percent_1)
+            header.insert(18, "TD/Off %")
+            ws.set_column_pixels(18, 18, None, self.fmt.percent_1)
         ws.write_row(0, 0, header)
         ws.freeze_panes(1, 0)
         ws.autofilter("A1:B1")  # pyright: ignore[reportCallIssue]
@@ -503,7 +507,7 @@ class ExcelPdbWorkbook:
 
         if self.show_percentages:
             row_data.insert(14, round(int(play_data.interceptions) / int(play_data.play_count), 3))
-            row_data.insert(16, round(int(play_data.sacks) / (int(play_data.play_count) + int(play_data.sacks)), 3))
+            row_data.insert(16, round(int(play_data.sacks) / int(play_data.play_count), 3))
             row_data.insert(18, round(int(play_data.touchdowns_offense) / int(play_data.play_count), 3))
 
         self.pass_.worksheet.write_row(self.pass_.rows, 0, row_data)
@@ -557,10 +561,21 @@ class ExcelPdbWorkbook:
 
         if self.show_percentages:
             row_data.insert(
-                17, round((int(play_data.fumbles) + int(play_data.interceptions)) / int(play_data.play_count), 3)
+                17,
+                round(int(play_data.interceptions) / int(play_data.pass_plays_against), 3)
+                if play_data.pass_plays_against > 0
+                else 0,
             )
-            row_data.insert(19, round(int(play_data.sacks) / (int(play_data.play_count) + int(play_data.sacks)), 3))
-            row_data.insert(22, round(int(play_data.touchdowns_offense) / int(play_data.play_count), 3))
+            row_data.insert(
+                19,
+                round(int(play_data.sacks) / int(play_data.pass_plays_against), 3)
+                if play_data.pass_plays_against > 0
+                else 0,
+            )
+            row_data.insert(
+                22,
+                round(int(play_data.touchdowns_offense) / total_calls, 3) if total_calls > 0 else 0,
+            )
 
         self.def_.worksheet.write_row(self.def_.rows, 0, row_data)
         self.def_.rows += 1
@@ -621,6 +636,9 @@ class ExcelPdbWorkbook:
         self.pass_categories.rows += 1
 
     def _add_defense_category(self, team_category, category_data):
+        total_calls = int(category_data.run_plays_against) + int(category_data.pass_plays_against)
+        total_yards = int(category_data.rush_yards_allowed) + int(category_data.pass_yards_allowed)
+        total_avg = total_yards / total_calls if total_calls > 0 else 0.0
         rush_avg = (
             int(category_data.rush_yards_allowed) / int(category_data.run_plays_against)
             if category_data.run_plays_against > 0
@@ -635,6 +653,9 @@ class ExcelPdbWorkbook:
         row_data = [
             team_category[0],
             team_category[1],
+            total_calls,
+            total_yards,
+            round(total_avg, 1),
             category_data.run_plays_against,
             category_data.rush_yards_allowed,
             round(rush_avg, 1),
@@ -650,15 +671,21 @@ class ExcelPdbWorkbook:
 
         if self.show_percentages:
             row_data.insert(
-                10,
-                round(
-                    (int(category_data.fumbles) + int(category_data.interceptions)) / int(category_data.play_count), 3
-                ),
+                13,
+                round(int(category_data.interceptions) / int(category_data.pass_plays_against), 3)
+                if category_data.pass_plays_against > 0
+                else 0,
             )
             row_data.insert(
-                12, round(int(category_data.sacks) / (int(category_data.play_count) + int(category_data.sacks)), 3)
+                15,
+                round(int(category_data.sacks) / int(category_data.pass_plays_against), 3)
+                if category_data.pass_plays_against > 0
+                else 0,
             )
-            row_data.insert(15, round(int(category_data.touchdowns_offense) / int(category_data.play_count), 3))
+            row_data.insert(
+                18,
+                round(int(category_data.touchdowns_offense) / total_calls, 3) if total_calls > 0 else 0,
+            )
 
         assert self.def_categories is not None
         self.def_categories.worksheet.write_row(self.def_categories.rows, 0, row_data)

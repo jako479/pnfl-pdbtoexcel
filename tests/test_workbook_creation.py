@@ -278,12 +278,12 @@ def test_def_plays_cell_values(workbook_no_gameplans: Path) -> None:
     assert rows[0] == [
         "Team", "Category", "Slot 1", "Slot 2", "Play", "Type",
         "Calls", "Yards", "Avg", "vs Run", "Yards", "Avg", "vs Pass", "Yards", "Avg",
-        "Fumbles", "Int", "TO %", "Sacks", "Sack %", "TD/Def", "TD/Off", "TD/Off %",
+        "Fumbles", "Int", "Int %", "Sacks", "Sack %", "TD/Def", "TD/Off", "TD/Off %",
     ]  # fmt: skip
     # First row, with Type ("3-4") populated. Calls/Yards/Avg = run + pass combined.
     assert rows[1] == [
         "Atlanta", "RunLeft", "", "", "AF31rl3H", "3-4",
-        5, 8, 1.6, 4, 8, 2, 1, 0, 0, 1, 0, 0.2, 1, 0.167, 0, 1, 0.2,
+        5, 8, 1.6, 4, 8, 2, 1, 0, 0, 1, 0, 0, 1, 1, 0, 1, 0.2,
     ]  # fmt: skip
     # Negative yardage row.
     assert rows[3] == [
@@ -351,9 +351,18 @@ def test_pass_categories_cell_values(workbook_with_categories: Path) -> None:
 def test_def_categories_cell_values(workbook_with_categories: Path) -> None:
     rows = _read_sheet_cells(workbook_with_categories, "Def Categories")
     assert rows[0] == [
-        "Team", "Category", "vs Run", "Yards", "Avg", "vs Pass", "Yards", "Avg",
-        "Fumbles", "Int", "TO %", "Sacks", "Sack %", "TD/Def", "TD/Off", "TD/Off %",
+        "Team", "Category", "Calls", "Yards", "Avg", "vs Run", "Yards", "Avg", "vs Pass", "Yards", "Avg",
+        "Fumbles", "Int", "Int %", "Sacks", "Sack %", "TD/Def", "TD/Off", "TD/Off %",
     ]  # fmt: skip
-    assert rows[1] == ["Atlanta", "RunLeft", 459, 2206, 4.8, 553, 3938, 7.1, 11, 10, 0.021, 27, 0.026, 0, 37, 0.037]
-    assert rows[3] == ["Atlanta", "RunRight", 28, 52, 1.9, 20, 98, 4.9, 1, 0, 0.019, 2, 0.036, 0, 4, 0.075]
-    assert rows[-1] == ["Total Stats", "GLpass", 87, 84, 1, 133, 839, 6.3, 2, 5, 0.032, 5, 0.022, 0, 68, 0.308]
+    assert rows[1] == [
+        "Atlanta", "RunLeft", 1012, 6144, 6.1, 459, 2206, 4.8, 553, 3938, 7.1,
+        11, 10, 0.018, 27, 0.049, 0, 37, 0.037,
+    ]  # fmt: skip
+    assert rows[3] == [
+        "Atlanta", "RunRight", 48, 150, 3.1, 28, 52, 1.9, 20, 98, 4.9,
+        1, 0, 0, 2, 0.1, 0, 4, 0.083,
+    ]  # fmt: skip
+    assert rows[-1] == [
+        "Total Stats", "GLpass", 220, 923, 4.2, 87, 84, 1, 133, 839, 6.3,
+        2, 5, 0.038, 5, 0.038, 0, 68, 0.309,
+    ]  # fmt: skip
