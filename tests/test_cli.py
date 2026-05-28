@@ -97,6 +97,17 @@ def test_config_falls_back_to_defaults(tmp_path: Path) -> None:
     nonexistent = tmp_path / "nonexistent.ini"
     c = load_config(path=nonexistent)
     assert c.play_path == r"C:\SIERRA\FbPro98\PNFL"
+    assert c.exclude_sacks_from_pass_attempts is True
+
+
+def test_config_exclude_sacks_from_pass_attempts(tmp_path: Path) -> None:
+    config_path = tmp_path / "convert-pdb.ini"
+
+    config_path.write_text("[Settings]\nExcludeSacksFromPassAttempts=Yes\n", encoding="utf-8")
+    assert load_config(path=config_path).exclude_sacks_from_pass_attempts is True
+
+    config_path.write_text("[Settings]\nExcludeSacksFromPassAttempts=No\n", encoding="utf-8")
+    assert load_config(path=config_path).exclude_sacks_from_pass_attempts is False
 
 
 def test_loads_category_order(tmp_path: Path) -> None:

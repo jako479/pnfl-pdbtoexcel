@@ -205,7 +205,7 @@ class PDB:
         """Reclassify offensive plays the engine logged under the wrong play_type.
 
         FbPro98's stat collector occasionally records a pass play under PLAY_TYPE.RUN
-        (or vice versa) — e.g. a sacked QB on a designed pass shows up in run stats.
+        (or vice versa) — e.g. a sacked QB on a timed pass shows up in run stats.
         This method walks RUN/PASS plays, looks up the canonical play in `play_pool`,
         and if the actual type disagrees with the PDB's classification, moves the
         record to the correct bucket. Stats are reattributed accordingly: yards lost

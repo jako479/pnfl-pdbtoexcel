@@ -343,9 +343,9 @@ def test_pass_categories_cell_values(workbook_with_categories: Path) -> None:
         "Team", "Category", "Comp", "Att", "Comp %", "Yards", "Y/Comp", "Y/Att",
         "Fumbles", "Int", "Int %", "Sacks", "Sack %", "TD", "TD %",
     ]  # fmt: skip
-    assert rows[1] == ["Atlanta", "PSL", 157, 254, 0.62, 1263, 8, 5, 1, 4, 0.016, 2, 0.008, 4, 0.016]
-    assert rows[3] == ["Atlanta", "PSR", 70, 115, 0.61, 520, 7.4, 4.5, 1, 2, 0.017, 5, 0.042, 4, 0.035]
-    assert rows[-1] == ["Total Stats", "GLP", 486, 655, 0.74, 1706, 3.5, 2.6, 5, 9, 0.014, 20, 0.03, 137, 0.209]
+    assert rows[1] == ["Atlanta", "PSL", 157, 252, 0.62, 1263, 8, 5, 1, 4, 0.016, 2, 0.008, 4, 0.016]
+    assert rows[3] == ["Atlanta", "PSR", 70, 110, 0.64, 520, 7.4, 4.7, 1, 2, 0.018, 5, 0.043, 4, 0.035]
+    assert rows[-1] == ["Total Stats", "GLP", 486, 635, 0.77, 1706, 3.5, 2.7, 5, 9, 0.014, 20, 0.031, 137, 0.209]
 
 
 def test_def_categories_cell_values(workbook_with_categories: Path) -> None:

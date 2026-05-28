@@ -480,10 +480,14 @@ class ExcelPdbWorkbook:
         if isinstance(play_record, OffensivePlayRecord) and play_record.screen:
             play_type = "Screen"
 
+        play_count = int(play_data.play_count)
+        sacks = int(play_data.sacks)
+        att = play_count - sacks if self.config.exclude_sacks_from_pass_attempts else play_count
+
         avg_per_completion = (
             int(play_data.total_yards) / int(play_data.completions) if play_data.completions > 0 else 0.0
         )
-        avg_per_attempt = int(play_data.total_yards) / int(play_data.play_count) if play_data.play_count > 0 else 0.0
+        avg_per_attempt = int(play_data.total_yards) / att if att > 0 else 0.0
 
         slot_1, slot_2 = play_slots
         row_data = [
@@ -494,8 +498,8 @@ class ExcelPdbWorkbook:
             play_data.play_name.decode("ASCII"),
             play_type,
             play_data.completions,
-            play_data.play_count,
-            round(int(play_data.completions) / int(play_data.play_count), 2),
+            att,
+            round(int(play_data.completions) / att, 2) if att > 0 else 0,
             play_data.total_yards,
             round(avg_per_completion, 1),
             round(avg_per_attempt, 1),
@@ -506,9 +510,9 @@ class ExcelPdbWorkbook:
         ]
 
         if self.show_percentages:
-            row_data.insert(14, round(int(play_data.interceptions) / int(play_data.play_count), 3))
-            row_data.insert(16, round(int(play_data.sacks) / int(play_data.play_count), 3))
-            row_data.insert(18, round(int(play_data.touchdowns_offense) / int(play_data.play_count), 3))
+            row_data.insert(14, round(int(play_data.interceptions) / att, 3) if att > 0 else 0)
+            row_data.insert(16, round(sacks / play_count, 3) if play_count > 0 else 0)
+            row_data.insert(18, round(int(play_data.touchdowns_offense) / play_count, 3) if play_count > 0 else 0)
 
         self.pass_.worksheet.write_row(self.pass_.rows, 0, row_data)
         self.pass_.rows += 1
@@ -602,19 +606,22 @@ class ExcelPdbWorkbook:
         self.run_categories.rows += 1
 
     def _add_pass_category(self, team_category, category_data):
+        play_count = int(category_data.play_count)
+        sacks = int(category_data.sacks)
+        exclude_sacks = self.config.exclude_sacks_from_pass_attempts
+        att = play_count - sacks if exclude_sacks else play_count
+
         avg_per_completion = (
             int(category_data.total_yards) / int(category_data.completions) if category_data.completions > 0 else 0.0
         )
-        avg_per_attempt = (
-            int(category_data.total_yards) / int(category_data.play_count) if category_data.play_count > 0 else 0.0
-        )
+        avg_per_attempt = int(category_data.total_yards) / att if att > 0 else 0.0
 
         row_data = [
             team_category[0],
             team_category[1],
             category_data.completions,
-            category_data.play_count,
-            round(int(category_data.completions) / int(category_data.play_count), 2),
+            att,
+            round(int(category_data.completions) / att, 2) if att > 0 else 0,
             category_data.total_yards,
             round(avg_per_completion, 1),
             round(avg_per_attempt, 1),
@@ -625,11 +632,13 @@ class ExcelPdbWorkbook:
         ]
 
         if self.show_percentages:
-            row_data.insert(10, round(int(category_data.interceptions) / int(category_data.play_count), 3))
-            row_data.insert(
-                12, round(int(category_data.sacks) / (int(category_data.play_count) + int(category_data.sacks)), 3)
-            )
-            row_data.insert(14, round(int(category_data.touchdowns_offense) / int(category_data.play_count), 3))
+            row_data.insert(10, round(int(category_data.interceptions) / att, 3) if att > 0 else 0)
+            if exclude_sacks:
+                sack_pct = round(sacks / play_count, 3) if play_count > 0 else 0
+            else:
+                sack_pct = round(sacks / (play_count + sacks), 3) if (play_count + sacks) > 0 else 0
+            row_data.insert(12, sack_pct)
+            row_data.insert(14, round(int(category_data.touchdowns_offense) / play_count, 3) if play_count > 0 else 0)
 
         assert self.pass_categories is not None
         self.pass_categories.worksheet.write_row(self.pass_categories.rows, 0, row_data)

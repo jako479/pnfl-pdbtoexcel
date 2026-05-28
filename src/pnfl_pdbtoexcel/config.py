@@ -27,6 +27,7 @@ class Config:
     calculate_total_stats: bool = True
     calculate_percentages: bool = True
     include_category_worksheets: bool = False
+    exclude_sacks_from_pass_attempts: bool = True
 
 
 def get_runtime_path(filename: str) -> Path:
@@ -52,6 +53,7 @@ def load_config(
         calculate_percentages=cp.getboolean("Settings", "CalculatePercentages", fallback=True),
         # Hidden feature: undocumented in the released config and CLI help.
         include_category_worksheets=cp.getboolean("Settings", "IncludeCategoryWorksheets", fallback=False),
+        exclude_sacks_from_pass_attempts=cp.getboolean("Settings", "ExcludeSacksFromPassAttempts", fallback=True),
     )
 
 
