@@ -57,4 +57,12 @@ pytest
 
 ## Building a Release
 
-This project is distributed as part of the [`pnfl`](../pnfl) umbrella CLI. See `pnfl/scripts/build_release.py` for release packaging.
+Ships these artifacts to the umbrella bundle:
+
+- `release/convert-pdb.bat` — launcher template
+- `config/convert-pdb.ini` — release config
+- `src/pnfl_pdbtoexcel/resources/vbaProject.bin` — embedded VBA macros for `.xlsm` output
+- `src/pnfl_pdbtoexcel/resources/vbaProject_categories.bin` — embedded VBA macros for `.xlsm` output with category worksheets
+- Python wheel (built by `pnfl/scripts/build_release.py`)
+
+Distributed as part of the [`pnfl`](../pnfl) umbrella CLI.
