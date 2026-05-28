@@ -81,6 +81,14 @@ FOR %%F IN ("%GAMELOG_DIR%\*.PDB") DO (
     pnfl convert-pdb "%%~fF" "%%~dpnF.xlsm" -o "%SELECTED_OGP1%" -d "%SELECTED_DGP1%" %YEARLY_EXTRA_PLANS%
 )
 
+:: Example individual calls
+:: SEAONAL
+::   pnfl convert-pdb "E:\PNFL\League - Game Logs\2048.pdb" "E:\PNFL\League - Game Logs\2048.xlsm" -o "E:\SIERRA\FbPro98\DEN-OGP1.pln" -d "E:\SIERRA\FbPro98\DEN-DGP1.pln"
+::   pnfl convert-pdb "E:\PNFL\League - Game Logs\2048.pdb" "E:\PNFL\League - Game Logs\2048.xlsm" -o "E:\SIERRA\FbPro98\DEN-OGP1.pln" -d "E:\SIERRA\FbPro98\DEN-DGP1.pln" -o2 "E:\SIERRA\FbPro98\DEN-OGP2.pln" -d2 "E:\SIERRA\FbPro98\DEN-DGP2.pln"
+:: WEEKLY
+::   pnfl convert-pdb "E:\PNFL\League - Game Logs\2048\48W12.pdb" "E:\PNFL\League - Game Logs\2048\48W12.xlsm" -o "E:\SIERRA\FbPro98\PNFL\2048\Plans\Denver (Brian)\48W12\DEN-OGP1.pln" -d "E:\SIERRA\FbPro98\PNFL\2048\Plans\Denver (Brian)\48W12\DEN-DGP1.pln" --skip-calcs
+::   pnfl convert-pdb "E:\PNFL\League - Game Logs\2048\48W12.pdb" "E:\PNFL\League - Game Logs\2048\48W12.xlsm" -o "E:\SIERRA\FbPro98\PNFL\2048\Plans\Denver (Brian)\48W12\DEN-OGP1.pln" -d "E:\SIERRA\FbPro98\PNFL\2048\Plans\Denver (Brian)\48W12\DEN-DGP1.pln" -o2 "E:\SIERRA\FbPro98\PNFL\2048\Plans\Denver (Brian)\48W12\DEN-OGP2.pln" -d2 "E:\SIERRA\FbPro98\PNFL\2048\Plans\Denver (Brian)\48W12\DEN-DGP2.pln" --skip-calcs
+
 ENDLOCAL
 
 PAUSE

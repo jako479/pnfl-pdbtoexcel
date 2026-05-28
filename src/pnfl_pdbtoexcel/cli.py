@@ -2,19 +2,22 @@ from __future__ import annotations
 
 import argparse
 import logging
+import sys
 from collections.abc import Sequence
 from pathlib import Path
 
+from xlsxwriter.exceptions import XlsxWriterException
+
 from pnfl_pdbtoexcel.main import convert_pdb
 
+PROG = "pnfl convert-pdb"
 
-def _valid_existing_file(param: str, expected_extensions: tuple[str, ...]) -> str:
+
+def _valid_file_extension(param: str, expected_extensions: tuple[str, ...]) -> str:
     filepath = Path(param).expanduser()
     if filepath.suffix.lower() not in expected_extensions:
         extensions = ", ".join(expected_extensions)
         raise argparse.ArgumentTypeError(f"File must have one of these extensions: {extensions}")
-    if not filepath.is_file():
-        raise argparse.ArgumentTypeError(f"File not found: {filepath}")
     return str(filepath)
 
 
@@ -27,12 +30,12 @@ def _valid_output_file(param: str) -> str:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog="pnfl convert-pdb",
+        prog=PROG,
         description="Create an Excel workbook from a WinLogStats PDB and optional FBPro 98 game plans.",
     )
     parser.add_argument(
         "pdbfile",
-        type=lambda v: _valid_existing_file(v, (".pdb",)),
+        type=lambda v: _valid_file_extension(v, (".pdb",)),
         help="WinLogStats database file (.PDB)",
     )
     parser.add_argument(
@@ -43,30 +46,30 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "-d",
         "--plnfile-defense",
-        type=lambda v: _valid_existing_file(v, (".pln",)),
+        type=lambda v: _valid_file_extension(v, (".pln",)),
         help="defensive game plan file (.PLN)",
     )
     parser.add_argument(
         "-d2",
         "--plnfile-defense-2",
-        type=lambda v: _valid_existing_file(v, (".pln",)),
+        type=lambda v: _valid_file_extension(v, (".pln",)),
         help="second defensive game plan file (.PLN)",
     )
     parser.add_argument(
         "-o",
         "--plnfile-offense",
-        type=lambda v: _valid_existing_file(v, (".pln",)),
+        type=lambda v: _valid_file_extension(v, (".pln",)),
         help="offensive game plan file (.PLN)",
     )
     parser.add_argument(
         "-o2",
         "--plnfile-offense-2",
-        type=lambda v: _valid_existing_file(v, (".pln",)),
+        type=lambda v: _valid_file_extension(v, (".pln",)),
         help="second offensive game plan file (.PLN)",
     )
     parser.add_argument(
         "--config",
-        type=lambda v: Path(_valid_existing_file(v, (".ini",))),
+        type=lambda v: Path(_valid_file_extension(v, (".ini",))),
         help="use this INI file instead of the default config lookup",
     )
     parser.add_argument(
@@ -100,16 +103,31 @@ def main(argv: Sequence[str] | None = None) -> int:
         level=logging.INFO,
         format="%(levelname)s: %(message)s",
     )
-    convert_pdb(
-        pdb_path=args.pdbfile,
-        output_path=args.outputfile,
-        pln_defense=args.plnfile_defense,
-        pln_offense=args.plnfile_offense,
-        pln_defense_2=args.plnfile_defense_2,
-        pln_offense_2=args.plnfile_offense_2,
-        config_path=args.config,
-        play_path_override=args.play_path,
-        skip_calcs=args.skip_calcs,
-        skip_totals=args.skip_totals,
-    )
+    for path in (
+        args.pdbfile,
+        args.plnfile_defense,
+        args.plnfile_defense_2,
+        args.plnfile_offense,
+        args.plnfile_offense_2,
+        args.config,
+    ):
+        if path is not None and not Path(path).is_file():
+            print(f"{PROG}: {path}: file not found", file=sys.stderr)
+            return 1
+    try:
+        convert_pdb(
+            pdb_path=args.pdbfile,
+            output_path=args.outputfile,
+            pln_defense=args.plnfile_defense,
+            pln_offense=args.plnfile_offense,
+            pln_defense_2=args.plnfile_defense_2,
+            pln_offense_2=args.plnfile_offense_2,
+            config_path=args.config,
+            play_path_override=args.play_path,
+            skip_calcs=args.skip_calcs,
+            skip_totals=args.skip_totals,
+        )
+    except (OSError, XlsxWriterException) as error:
+        print(f"{PROG}: {error}", file=sys.stderr)
+        return 1
     return 0

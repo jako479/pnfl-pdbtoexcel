@@ -283,7 +283,7 @@ def test_def_plays_cell_values(workbook_no_gameplans: Path) -> None:
     # First row, with Type ("3-4") populated. Calls/Yards/Avg = run + pass combined.
     assert rows[1] == [
         "Atlanta", "RunLeft", "", "", "AF31rl3H", "3-4",
-        5, 8, 1.6, 4, 8, 2, 1, 0, 0, 1, 0, 0.2, 1, 0.2, 0, 1, 0.2,
+        5, 8, 1.6, 4, 8, 2, 1, 0, 0, 1, 0, 0.2, 1, 0.167, 0, 1, 0.2,
     ]  # fmt: skip
     # Negative yardage row.
     assert rows[3] == [
@@ -344,8 +344,8 @@ def test_pass_categories_cell_values(workbook_with_categories: Path) -> None:
         "Fumbles", "Int", "Int %", "Sacks", "Sack %", "TD", "TD %",
     ]  # fmt: skip
     assert rows[1] == ["Atlanta", "PSL", 157, 254, 0.62, 1263, 8, 5, 1, 4, 0.016, 2, 0.008, 4, 0.016]
-    assert rows[3] == ["Atlanta", "PSR", 70, 115, 0.61, 520, 7.4, 4.5, 1, 2, 0.017, 5, 0.043, 4, 0.035]
-    assert rows[-1] == ["Total Stats", "GLP", 486, 655, 0.74, 1706, 3.5, 2.6, 5, 9, 0.014, 20, 0.031, 137, 0.209]
+    assert rows[3] == ["Atlanta", "PSR", 70, 115, 0.61, 520, 7.4, 4.5, 1, 2, 0.017, 5, 0.042, 4, 0.035]
+    assert rows[-1] == ["Total Stats", "GLP", 486, 655, 0.74, 1706, 3.5, 2.6, 5, 9, 0.014, 20, 0.03, 137, 0.209]
 
 
 def test_def_categories_cell_values(workbook_with_categories: Path) -> None:
@@ -354,6 +354,6 @@ def test_def_categories_cell_values(workbook_with_categories: Path) -> None:
         "Team", "Category", "vs Run", "Yards", "Avg", "vs Pass", "Yards", "Avg",
         "Fumbles", "Int", "TO %", "Sacks", "Sack %", "TD/Def", "TD/Off", "TD/Off %",
     ]  # fmt: skip
-    assert rows[1] == ["Atlanta", "RunLeft", 459, 2206, 4.8, 553, 3938, 7.1, 11, 10, 0.021, 27, 0.027, 0, 37, 0.037]
-    assert rows[3] == ["Atlanta", "RunRight", 28, 52, 1.9, 20, 98, 4.9, 1, 0, 0.019, 2, 0.038, 0, 4, 0.075]
-    assert rows[-1] == ["Total Stats", "GLpass", 87, 84, 1, 133, 839, 6.3, 2, 5, 0.032, 5, 0.023, 0, 68, 0.308]
+    assert rows[1] == ["Atlanta", "RunLeft", 459, 2206, 4.8, 553, 3938, 7.1, 11, 10, 0.021, 27, 0.026, 0, 37, 0.037]
+    assert rows[3] == ["Atlanta", "RunRight", 28, 52, 1.9, 20, 98, 4.9, 1, 0, 0.019, 2, 0.036, 0, 4, 0.075]
+    assert rows[-1] == ["Total Stats", "GLpass", 87, 84, 1, 133, 839, 6.3, 2, 5, 0.032, 5, 0.022, 0, 68, 0.308]

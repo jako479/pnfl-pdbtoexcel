@@ -503,7 +503,7 @@ class ExcelPdbWorkbook:
 
         if self.show_percentages:
             row_data.insert(14, round(int(play_data.interceptions) / int(play_data.play_count), 3))
-            row_data.insert(16, round(int(play_data.sacks) / int(play_data.play_count), 3))
+            row_data.insert(16, round(int(play_data.sacks) / (int(play_data.play_count) + int(play_data.sacks)), 3))
             row_data.insert(18, round(int(play_data.touchdowns_offense) / int(play_data.play_count), 3))
 
         self.pass_.worksheet.write_row(self.pass_.rows, 0, row_data)
@@ -559,7 +559,7 @@ class ExcelPdbWorkbook:
             row_data.insert(
                 17, round((int(play_data.fumbles) + int(play_data.interceptions)) / int(play_data.play_count), 3)
             )
-            row_data.insert(19, round(int(play_data.sacks) / int(play_data.play_count), 3))
+            row_data.insert(19, round(int(play_data.sacks) / (int(play_data.play_count) + int(play_data.sacks)), 3))
             row_data.insert(22, round(int(play_data.touchdowns_offense) / int(play_data.play_count), 3))
 
         self.def_.worksheet.write_row(self.def_.rows, 0, row_data)
@@ -611,7 +611,9 @@ class ExcelPdbWorkbook:
 
         if self.show_percentages:
             row_data.insert(10, round(int(category_data.interceptions) / int(category_data.play_count), 3))
-            row_data.insert(12, round(int(category_data.sacks) / int(category_data.play_count), 3))
+            row_data.insert(
+                12, round(int(category_data.sacks) / (int(category_data.play_count) + int(category_data.sacks)), 3)
+            )
             row_data.insert(14, round(int(category_data.touchdowns_offense) / int(category_data.play_count), 3))
 
         assert self.pass_categories is not None
@@ -653,7 +655,9 @@ class ExcelPdbWorkbook:
                     (int(category_data.fumbles) + int(category_data.interceptions)) / int(category_data.play_count), 3
                 ),
             )
-            row_data.insert(12, round(int(category_data.sacks) / int(category_data.play_count), 3))
+            row_data.insert(
+                12, round(int(category_data.sacks) / (int(category_data.play_count) + int(category_data.sacks)), 3)
+            )
             row_data.insert(15, round(int(category_data.touchdowns_offense) / int(category_data.play_count), 3))
 
         assert self.def_categories is not None
