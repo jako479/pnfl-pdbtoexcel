@@ -1,0 +1,44 @@
+# Changelog
+
+- `.bin` files included in release artifacts.
+- PDB file spec and ImHex pattern (`.hexpat`).
+- `ExcludeSacksFromPassAttempts` config setting.
+- Additional Def Categories columns; TO % → Int %.
+- Weekly script solo examples.
+- Overall average row on Def Plays worksheet.
+- Category worksheets hidden config.
+- `STATUS.md`, `TEST_STATUS.md`, `.editorconfig`.
+- CLI: renamed `--plnfile-*` options; dropped `-c`/`-t` short flags; doc updates.
+- Renamed workbook module.
+- Renamed Def Plays column `Att` → `Rushes`.
+- Tweaked project tooling config.
+- `__WEEKLY.bat` handles dual offensive and defensive game plans.
+- Pass Categories sort fix in VBA `.bin` files.
+- Calculation fixes.
+- Typo in configs.
+- CLI error handling.
+- Empty `__init__.py`; description ends with a period.
+- `pnfl.commands` entry point declaration.
+- Sort plays and category data before write; minor refactor with file rename.
+- `__WEEKLY.bat` second-game-plan support.
+- Optional second offensive/defensive game plan parameter docs.
+- Standardized project tooling config.
+- Consistent `__init__.py`; absolute import paths.
+- CLI tests and workbook integration tests.
+- `--team` and `--pnfl-path` CLI overrides.
+- Migrated to the `pnfl` umbrella; second-gameplan support.
+- Typed config and dependency injection (`PlayPath` rename).
+- `LICENSE` (MIT).
+- v1.0.0 release packaging prep.
+- Replaced internal `PlayPool` with the `pnfl-playpool` library.
+- Extracted `.pln` reader into the shared `fbpro98-gameplan` library.
+- Extracted PDB parsing into a dedicated module.
+- Refactored package structure; added parser tests.
+- Refactored workbook generation.
+- Split into `config`/`cli` modules.
+- Renamed `pdb_to_excel` module; doc updates.
+- Replaced `print` calls with logging.
+- License copyright updated for 2026.
+- Removed legacy launcher `pdb_to_excel.py` from project root.
+- Removed legacy `PdbWorkbookCreator` class.
+- Removed `sys.path` hacks in conftest in favor of editable installs.
