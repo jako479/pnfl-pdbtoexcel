@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import argparse
 import logging
-import sys
 from collections.abc import Sequence
 from pathlib import Path
 
@@ -11,6 +10,7 @@ from xlsxwriter.exceptions import XlsxWriterException
 from pnfl_pdbtoexcel.main import convert_pdb
 
 PROG = "pnfl convert-pdb"
+logger = logging.getLogger(__name__)
 
 
 def _valid_file_extension(param: str, expected_extensions: tuple[str, ...]) -> str:
@@ -110,7 +110,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         args.config,
     ):
         if path is not None and not Path(path).is_file():
-            print(f"{PROG}: {path}: file not found", file=sys.stderr)
+            logger.error("%s: %s: file not found", PROG, path)
             return 1
     try:
         convert_pdb(
@@ -126,6 +126,6 @@ def main(argv: Sequence[str] | None = None) -> int:
             skip_totals=args.skip_totals,
         )
     except (OSError, XlsxWriterException) as error:
-        print(f"{PROG}: {error}", file=sys.stderr)
+        logger.error("%s: %s", PROG, error)
         return 1
     return 0
